@@ -15,10 +15,18 @@
 
 <header class="header">
   <div class="logo">P & A</div>
-  <a href="login.html" class="btnAdmin">
-  <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ56OPkP5GJppPAulwJkAEHg8wq8Dfux8lZgQ&s">
-  </a>
-  <a href="presentes.html" class="btnHeader">Lista de Presentes</a>
+
+  <div style="display:flex; gap:10px;">
+    
+    <a href="presentes.html" class="btnHeader">
+      Lista de Presentes
+    </a>
+
+    <a href="login.html" class="btnHeader adminBtn">
+      <img src="https://cdn-icons-png.flaticon.com/512/1077/1077063.png">
+    </a>
+
+  </div>
 </header>
 
 <section class="versiculos">
@@ -29,20 +37,23 @@
     <!-- duplicado para loop -->
     <span>Colossenses 3:14: "Acima de tudo, porém, revistam-se do amor, que é o elo perfeito."</span>
     <span>Mateus 19:6: "Assim, eles já não são dois, mas sim uma só carne. Portanto, o que Deus uniu, ninguém separe."</span>
-  </section>
+</section>
 
-<c class="hero">
+<section class="hero">
+
   <h1>Paulo & Alana</h1>
-  <div class="linhaDecorativa"></div>
+  <img src="assets/bg/separador.png" class="separador">
   <p class="subHero">07 de Setembro de 2026</p>
-  <p class="contador">Faltam <span id="contador"></span> dias</p>
+  <p id="contador" class="contadorPremium"></p>
+  
+  
 </section>
 
 <section class="grid">
 
   <div class="card">
     <h3>LISTA DE PRESENTES</h3>
-    <a href="checkout.html" class="btn">ACESSAR</a>
+    <a href="presentes.html" class="btn">ACESSAR</a>
   </div>
 
   <div class="card">
@@ -52,7 +63,12 @@
 
   <div class="card">
     <h3>RECADO</h3>
-    <textarea placeholder="Deixe sua mensagem"></textarea>
+
+    <input id="nomeRecado" placeholder="Seu nome" class="inputNome">
+
+    <textarea id="mensagemRecado" placeholder="Deixe sua mensagem"></textarea>
+
+    <button class="btn" onclick="enviarRecado()">ENVIAR</button>
   </div>
 
   <div class="card">
@@ -62,12 +78,52 @@
 
 </section>
 
-<script>
-const dataCasamento = new Date("2026-09-07");
-const hoje = new Date();
-const diff = Math.ceil((dataCasamento - hoje) / (1000*60*60*24));
-document.getElementById("contador").innerText = diff;
-</script>
+<!-- GALERIA -->
+<section class="galeria">
+  <h2 class="tituloPresentes">NOSSOS MOMENTOS</h2>
+  <div id="galeriaFotos" class="gridGaleria"></div>
+</section>
+
+<footer class="footer">
+
+  <h3 class="logoFooter">ASGARD TECH</h3>
+
+ <div class="social">
+
+  <a href="#">
+    <svg viewBox="0 0 24 24" class="icon">
+      <path d="M7 2C4 2 2 4 2 7v10c0 3 2 5 5 5h10c3 0 5-2 5-5V7c0-3-2-5-5-5H7zm5 5a5 5 0 110 10 5 5 0 010-10zm6-1a1 1 0 110 2 1 1 0 010-2z"/>
+    </svg>
+  </a>
+
+  <a href="#">
+    <svg viewBox="0 0 24 24" class="icon">
+      <path d="M12 2a10 10 0 00-8.5 15.4L2 22l4.7-1.4A10 10 0 1012 2zm0 18a8 8 0 01-4.3-1.2l-.3-.2-2.8.8.8-2.7-.2-.3A8 8 0 1112 20z"/>
+    </svg>
+  </a>
+
+  <a href="#">
+    <svg viewBox="0 0 24 24" class="icon">
+      <path d="M22 12a10 10 0 10-11.5 9.9v-7H7v-3h3.5V9.5c0-3.5 2-5.5 5.2-5.5 1.5 0 3 .3 3 .3v3.3h-1.7c-1.7 0-2.2 1-2.2 2.1V12H18l-.5 3h-2.7v7A10 10 0 0022 12z"/>
+    </svg>
+  </a>
+
+  <a href="#">
+    <svg viewBox="0 0 24 24" class="icon">
+      <path d="M2 4h20v16H2V4zm10 7l8-5H4l8 5zm0 2l-8-5v10h16V8l-8 5z"/>
+    </svg>
+  </a>
+
+</div>
+
+  <p class="frase">Feito com ❤ para todos os casais</p>
+
+  <small>© 2026 Asgard TECH</small>
+
+</footer>
+
+<script src="script.js"></script>
+<script src="galeria.js"></script>
 
 </body>
 </html>

@@ -1,71 +1,15 @@
 const API = "https://casamento-backend-f7e4.onrender.com";
 
-let produtos = [
-  { nome: "Geladeira", valor: 3000, cota: 300, totalCotas: 10, compradas: 3, img: "https://images.unsplash.com/photo-1586201375761-83865001e31c" },
-  { nome: "Lua de Mel", valor: 5000, cota: 250, totalCotas: 20, compradas: 5, img: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e" }
-];
+// ================= DATA LAYER =================
 
-// ================= PRODUTOS =================
-function renderProdutos(){
-
-  let div = document.getElementById("produtos");
-  if(!div) return;
-
-  div.innerHTML = "";
-
-  produtos.forEach((p,i)=>{
-
-    let progresso = (p.compradas / p.totalCotas) * 100;
-    let esgotado = p.compradas >= p.totalCotas;
-
-    div.innerHTML += `
-      <div class="card">
-        <img src="${p.img}">
-        <h3>${p.nome}</h3>
-
-        <div class="progress">
-          <div style="width:${progresso}%"></div>
-        </div>
-
-        <small>${p.compradas}/${p.totalCotas} cotas</small>
-
-        <p>R$ ${p.cota} por cota</p>
-
-        ${
-          esgotado
-          ? `<button disabled>Esgotado</button>`
-          : `<button onclick="comprar(${i})">Comprar</button>`
-        }
-
-      </div>
-    `;
-  });
-
+function getProdutos(){
+return JSON.parse(localStorage.getItem("produtos")) || [];
 }
 
-// ================= COMPRA =================
-function comprar(i){
-
-  let p = produtos[i];
-
-  if(p.compradas >= p.totalCotas){
-    alert("Item já completo");
-    return;
-  }
-
-  let qtd = prompt("Quantas cotas?");
-  if(!qtd || qtd <= 0) return;
-
-  let total = qtd * p.cota;
-
-  localStorage.setItem("compra", JSON.stringify({
-    nome: p.nome,
-    qtd,
-    total
-  }));
-
-  window.location = "pagamento.html";
+function saveProdutos(produtos){
+localStorage.setItem("produtos", JSON.stringify(produtos));
 }
+
 
 // ================= RESUMO =================
 function resumo(){
@@ -148,10 +92,7 @@ function finalizarPagamento(){
 }
 
 // ================= INIT =================
-renderProdutos();
 resumo();
-carregarPagamentos();
-setInterval(carregarPagamentos, 10000);
 
 // ============ PRESENÇA =============
 function confirmarPresenca() {
@@ -204,44 +145,57 @@ carregarPresencas()
 
 // ================= SALVAR (CRIAR OU EDITAR) =================
 function salvarProduto(){
+
   const nome = document.getElementById("nomeProduto").value
-  const valor = document.getElementById("valorProduto").value
-  const cota = document.getElementById("cotaProduto").value
+  const valorTotal = parseFloat(document.getElementById("valorProduto").value)
+  const valorCota = parseFloat(document.getElementById("cotaProduto").value)
   const imagem = document.getElementById("imagemProduto").value
   const editIndex = document.getElementById("editIndex").value
 
-  if(!nome || !valor || !cota){
-    alert("Preencha tudo")
-    return
+  if(!nome || !valorTotal || !valorCota){
+  alert("Preencha tudo")
+  return
   }
 
-  let produtos = JSON.parse(localStorage.getItem("produtos")) || []
+  if(valorCota > valorTotal){
+  alert("Cota maior que valor total")
+  return
+  }
+
+  const totalCotas = Math.ceil(valorTotal / valorCota)
+
+  let produtos = getProdutos()
+
+  const novoProduto = {
+  id: Date.now(),
+  nome,
+  valorTotal,
+  valorCota,
+  totalCotas,
+  cotasCompradas: 0,
+  imagem,
+  presentes: []
+  }
 
   if(editIndex === ""){
-    // NOVO
-    produtos.push({
-      nome,
-      valor,
-      cota,
-      imagem,
-      comprado:0
-    })
-  } else {
-    // EDITAR
+    produtos.push(novoProduto)
+    } else {
     produtos[editIndex] = {
-      ...produtos[editIndex],
-      nome,
-      valor,
-      cota,
-      imagem
-    }
+    ...produtos[editIndex],
+    nome,
+    valorTotal,
+    valorCota,
+    totalCotas,
+    imagem
   }
-
-  localStorage.setItem("produtos", JSON.stringify(produtos))
-
-  limparFormulario()
-  carregarProdutosAdmin()
 }
+
+saveProdutos(produtos)
+
+limparFormulario()
+carregarProdutosAdmin()
+}
+
 
 // ================= EDITAR =================
 function editarProduto(index){
@@ -320,13 +274,36 @@ function carregarPresencasAdmin(){
 
   if(!div) return
 
-  lista.forEach(p=>{
+  // soma total de pessoas
+  let total = 0
+  lista.forEach(p => {
+    total += Number(p.quantidade)
+  })
+
+  div.innerHTML = `
+    <h3 style="margin-bottom:15px;">
+      Lista de Presença (${total} confirmados)
+    </h3>
+  `
+
+  lista.forEach((p, index)=>{
     div.innerHTML += `
-      <div style="margin-top:10px;">
-        ${p.nome} - ${p.quantidade} pessoa(s)
+      <div style="margin-top:10px; display:flex; justify-content:space-between;">
+        <span>${p.nome} - ${p.quantidade} pessoa(s)</span>
+        <button onclick="excluirPresenca(${index})">🗑️</button>
       </div>
     `
   })
+}
+
+function excluirPresenca(index){
+  let lista = JSON.parse(localStorage.getItem("presencas")) || []
+
+  lista.splice(index, 1)
+
+  localStorage.setItem("presencas", JSON.stringify(lista))
+
+  carregarPresencasAdmin()
 }
 
 carregarProdutosAdmin()
@@ -334,7 +311,7 @@ carregarPresencasAdmin()
 
 function carregarPresentes(){
 
-  const lista = JSON.parse(localStorage.getItem("produtos")) || []
+  const lista = getProdutos()
   const container = document.getElementById("listaPresentes")
 
   if(!container) return
@@ -343,62 +320,339 @@ function carregarPresentes(){
 
   lista.forEach((p, index)=>{
 
-    const totalCotas = Math.ceil(p.valor / p.cota)
-    const progresso = (p.comprado / totalCotas) * 100
+  
+  const progresso = (p.cotasCompradas / p.totalCotas) * 100
+  const esgotado = p.cotasCompradas >= p.totalCotas
 
-    container.innerHTML += `
-      <div class="card">
+  container.innerHTML += `
+    <div class="card">
 
-        ${p.imagem ? `<img src="${p.imagem}">` : ""}
+      ${p.imagem ? `<img src="${p.imagem}">` : ""}
 
-        <h3>${p.nome}</h3>
+      <h3>${p.nome}</h3>
 
-        <div class="progress">
-          <div style="width:${progresso}%"></div>
+      <div class="progress">
+        <div style="width:${progresso}%"></div>
+      </div>
+
+      <small>${p.cotasCompradas} de ${p.totalCotas} cotas</small>
+
+      <p>R$ ${p.valorCota} por cota</p>
+
+      <button 
+        onclick="comprarCota(${index})"
+        ${esgotado ? "disabled" : ""}
+      >
+        ${esgotado ? "ESGOTADO" : "PRESENTEAR"}
+      </button>
+
+    </div>
+    `
+
+  })
+}
+
+function comprarCota(index){
+
+  let produtos = getProdutos()
+
+  const qtd = parseInt(prompt("Quantas cotas deseja?"))
+  if(!qtd || qtd <= 0) return
+
+  const p = produtos[index]
+
+  if(p.cotasCompradas + qtd > p.totalCotas){
+  alert("Quantidade excede disponível")
+  return
+  }
+
+  const total = qtd * p.valorCota
+
+  localStorage.setItem("compra", JSON.stringify({
+  index,
+  nome: p.nome,
+  qtd,
+  total
+  }))
+
+  window.location = "pagamento.html"
+}
+
+carregarPresentes()
+
+// ================= RECADO =================
+function enviarRecado(){
+
+  const nomeInput = document.getElementById("nomeRecado")
+  const msgInput = document.getElementById("mensagemRecado")
+
+  if(!nomeInput || !msgInput){
+    alert("Erro interno: campos não encontrados")
+    return
+  }
+
+  const nome = nomeInput.value.trim()
+  const mensagem = msgInput.value.trim()
+
+  if(!nome || !mensagem){
+    alert("Preencha nome e mensagem")
+    return
+  }
+
+  // pega lista existente
+  const recados = JSON.parse(localStorage.getItem("recados")) || []
+
+  // adiciona novo recado
+  recados.push({
+    nome,
+    mensagem,
+    data: new Date().toLocaleString()
+  })
+
+  // salva
+  localStorage.setItem("recados", JSON.stringify(recados))
+
+  // 🔥 FEEDBACK BONITO (sem alert)
+  mostrarFeedback("Sua mensagem foi enviada!")
+
+  // 🔥 LIMPA CAMPOS
+  nomeInput.value = ""
+  msgInput.value = ""
+}
+
+function carregarRecadosAdmin(){
+
+  const lista = JSON.parse(localStorage.getItem("recados")) || []
+  const div = document.getElementById("recados")
+
+  if(!div) return
+
+  div.innerHTML = ""
+
+  lista.reverse().forEach((r, index) => {
+
+    div.innerHTML += `
+      <div style="
+        margin-top:10px;
+        padding:10px;
+        border:1px solid #eee;
+        border-radius:8px;
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+      ">
+
+        <div>
+          <strong>${r.nome}</strong>
+          <p style="font-size:13px;">${r.mensagem}</p>
         </div>
 
-        <small>${p.comprado} de ${totalCotas} cotas</small>
-
-        <button 
-          onclick="comprarCota(${index})"
-          ${p.comprado >= totalCotas ? "disabled" : ""}
-        >
-          ${p.comprado >= totalCotas ? "ESGOTADO" : "PRESENTEAR"}
+        <button onclick="excluirRecado(${index})" style="
+          background:none;
+          border:none;
+          cursor:pointer;
+          font-size:16px;
+        ">
+          🗑️
         </button>
 
       </div>
     `
   })
 }
-function comprarCota(index){
 
-  let produtos = JSON.parse(localStorage.getItem("produtos"))
+function excluirRecado(index){
 
-  const nome = prompt("Digite seu nome para presentear:")
+  if(!confirm("Excluir este recado?")) return
 
-  if(!nome) return
+  let lista = JSON.parse(localStorage.getItem("recados")) || []
 
-  const totalCotas = Math.ceil(produtos[index].valor / produtos[index].cota)
+  // ⚠️ como usamos reverse, precisa ajustar índice
+  lista.splice(lista.length - 1 - index, 1)
 
-  if(produtos[index].comprado >= totalCotas){
-    alert("Produto esgotado")
+  localStorage.setItem("recados", JSON.stringify(lista))
+
+  carregarRecadosAdmin()
+}
+
+function mostrarFeedback(texto){
+
+  const div = document.createElement("div")
+
+  div.innerText = texto
+
+  div.style.position = "fixed"
+  div.style.bottom = "20px"
+  div.style.left = "50%"
+  div.style.transform = "translateX(-50%)"
+  div.style.background = "#2f3e3a"
+  div.style.color = "white"
+  div.style.padding = "12px 20px"
+  div.style.borderRadius = "8px"
+  div.style.fontSize = "13px"
+  div.style.zIndex = "9999"
+
+  document.body.appendChild(div)
+
+  setTimeout(() => {
+    div.remove()
+  }, 2500)
+}
+
+function toggleBloco(elemento){
+
+  const conteudo = elemento.nextElementSibling
+
+  if(conteudo.style.display === "block"){
+    conteudo.style.display = "none"
+  } else {
+    conteudo.style.display = "block"
+  }
+
+}
+
+// ================= GALERIA ADMIN =================
+
+function adicionarFoto(){
+
+  let url = document.getElementById("fotoUrl").value
+
+  if(!url){
+    alert("Cole a URL da imagem")
     return
   }
 
-  produtos[index].comprado++
+  let fotos = JSON.parse(localStorage.getItem("fotos")) || []
 
-  // salvar nome do presenteador
-  if(!produtos[index].presentes){
-    produtos[index].presentes = []
+  fotos.push(url)
+
+  localStorage.setItem("fotos", JSON.stringify(fotos))
+
+  document.getElementById("fotoUrl").value = ""
+
+  carregarFotosAdmin()
+}
+
+function carregarFotosAdmin(){
+
+  const fotos = JSON.parse(localStorage.getItem("fotos")) || []
+  const div = document.getElementById("listaFotos")
+
+  if(!div) return
+
+  div.innerHTML = ""
+
+  fotos.forEach((f, i)=>{
+
+    const item = document.createElement("div")
+
+    item.innerHTML = `
+      <img src="${f}" style="width:60px; border-radius:6px;">
+      <button onclick="removerFoto(${i})">Excluir</button>
+    `
+
+    div.appendChild(item)
+  })
+}
+
+function removerFoto(i){
+
+  let fotos = JSON.parse(localStorage.getItem("fotos"))
+
+  fotos.splice(i,1)
+
+  localStorage.setItem("fotos", JSON.stringify(fotos))
+
+  carregarFotosAdmin()
+}
+
+carregarFotosAdmin()
+
+// ================= GALERIA HOME =================
+
+function carregarGaleria(){
+
+  const container = document.getElementById("galeriaFotos")
+  if(!container) return
+
+  const fotos = JSON.parse(localStorage.getItem("fotos")) || []
+
+  container.innerHTML = ""
+
+  fotos.forEach(url => {
+
+    container.innerHTML += `
+      <div class="fotoItemHome">
+        <img src="${url}" onclick="abrirFoto('${url}')">
+      </div>
+    `
+
+  })
+
+}
+
+function abrirFoto(url){
+
+  const modal = document.createElement("div")
+  modal.className = "modalFoto"
+
+  modal.innerHTML = `<img src="${url}">`
+
+  modal.onclick = () => modal.remove()
+
+  document.body.appendChild(modal)
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+
+  carregarGaleria()
+  carregarFotosAdmin()
+
+})
+
+// ================= CONTADOR =================
+
+carregarPresentes()
+carregarPresencas()
+carregarProdutosAdmin()
+carregarPresencasAdmin()
+carregarGaleria()
+
+// ================= CONTADOR =================
+
+document.addEventListener("DOMContentLoaded", () => {
+
+  function atualizarContador(){
+
+    const dataCasamento = new Date("2026-09-07T00:00:00").getTime()
+
+    const agora = new Date().getTime()
+
+    const diferenca = dataCasamento - agora
+
+    const dias = Math.floor(diferenca / (1000 * 60 * 60 * 24))
+
+    const horas = Math.floor(
+      (diferenca % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+    )
+
+    const minutos = Math.floor(
+      (diferenca % (1000 * 60 * 60)) / (1000 * 60)
+    )
+
+    const contador = document.getElementById("contador")
+
+    if(contador){
+
+      contador.innerHTML =
+      `${dias} DIAS | ${horas} HORAS | ${minutos} MIN`
+
+    }
+
   }
 
-  produtos[index].presentes.push(nome)
+  atualizarContador()
 
-  localStorage.setItem("produtos", JSON.stringify(produtos))
+  setInterval(atualizarContador, 1000)
 
-  alert("Obrigado pelo presente ❤️")
-
-  carregarPresentes()
-}
-carregarPresentes()
-
+})

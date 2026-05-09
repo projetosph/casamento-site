@@ -13,34 +13,75 @@
   <a href="index.html" class="btnHeader">Sair</a>
 </header>
 
-<section class="pagamento-container">
+<section class="painel-container">
 
   <h2 class="nomes">PAINEL DOS NOIVOS</h2>
 
-  <!-- ===== ADICIONAR PRESENTE ===== -->
- <h3>Adicionar / Editar Presente</h3>
+  <!-- ===== PRODUTOS ===== -->
+  <div class="bloco">
+    <div class="tituloBloco" onclick="toggleBloco(this)">
+      Adicionar / Editar Presente
+    </div>
 
-<input id="nomeProduto" placeholder="Nome do presente" class="inputNome">
-<input id="valorProduto" placeholder="Valor total" class="inputNome">
-<input id="cotaProduto" placeholder="Valor da cota" class="inputNome">
+    <div class="conteudoBloco">
 
-<input id="imagemProduto" placeholder="URL da imagem (opcional)" class="inputNome">
+      <input id="nomeProduto" placeholder="Nome do presente" class="inputNome">
+      <input id="valorProduto" placeholder="Valor total" class="inputNome">
+      <input id="cotaProduto" placeholder="Valor da cota" class="inputNome">
+      <input id="imagemProduto" placeholder="URL da imagem" class="inputNome">
 
-<button class="btnFinalizar" onclick="salvarProduto()">
-  SALVAR
-</button>
 
-<input type="hidden" id="editIndex">
+      <button class="btnFinalizar" onclick="salvarProduto()">SALVAR</button>
 
-<div id="listaProdutos"></div>
+      <input type="hidden" id="editIndex">
 
-  <!-- ===== PRESENÇAS ===== -->
-  <h3 style="margin-top:30px;">Lista de Presença</h3>
-  <div id="presencas"></div>
+      <div id="listaProdutos"></div>
+
+    </div>
+  </div>
+
+  <!-- ===== PRESENÇA ===== -->
+  <div class="bloco">
+    <div class="tituloBloco" onclick="toggleBloco(this)">
+      Lista de Presença
+    </div>
+
+    <div class="conteudoBloco" id="presencas"></div>
+  </div>
+
+  <!-- ===== RECADOS ===== -->
+  <div class="bloco">
+    <div class="tituloBloco" onclick="toggleBloco(this)">
+      Recados
+    </div>
+
+    <div class="conteudoBloco" id="recados"></div>
+  </div>
+  <div class="bloco">
+
+  <div class="tituloBloco" onclick="toggleBloco(this)">
+    Galeria de Fotos
+  </div>
+
+<div class="conteudoBloco">
+
+  <input id="fotoUrl" class="inputNome" placeholder="URL da imagem">
+  <button onclick="adicionarFoto()">ADICIONAR FOTO</button>
+
+
+  <div id="listaFotos"></div>
 
 </section>
 
-<script src="script.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  carregarProdutosAdmin();
+  carregarPresencasAdmin();
+  carregarRecadosAdmin();
+});
+</script>
 
+<script src="script.js"></script>
+<script src="galeria.js"></script>
 </body>
 </html>
