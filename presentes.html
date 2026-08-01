@@ -1,51 +1,12 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lista de Presentes</title>
-
-<link rel="stylesheet" href="style.css">
-
-<style>
-/* 🔥 AJUSTE DE TAMANHO DOS CARDS */
-.produtos {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 20px;
-  padding: 30px;
-  max-width: 1000px;
-  margin: auto;
-}
-
-.card {
-  padding: 15px;
-  min-height: 220px;
-}
-
-.card img {
-  width: 100%;
-  aspect-ratio: 1 / 1;   /* 🔥 deixa quadrada */
-  object-fit: contain;   /* 🔥 não corta */
-  background: #f5f5f5;   /* opcional, dá um fundo bonito */
-  border-radius: 10px;
-}
-
-.card h3 {
-  font-size: 13px;
-}
-
-.card p {
-  font-size: 12px;
-}
-
-.card button {
-  font-size: 12px;
-  padding: 8px;
-}
-</style>
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lista de Presentes</title>
+  <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
 <header class="header">
@@ -53,12 +14,10 @@
   <a href="index.html" class="btnHeader">Início</a>
 </header>
 
-<!-- VERSÍCULOS -->
 <div class="versiculos">
   <div class="versiculos-track">
     <span>Colossenses 3:14: "Acima de tudo, porém, revistam-se do amor, que é o elo perfeito."</span>
     <span>Mateus 19:6: "Assim, eles já não são dois, mas sim uma só carne."</span>
-
     <span>Colossenses 3:14: "Acima de tudo, porém, revistam-se do amor, que é o elo perfeito."</span>
     <span>Mateus 19:6: "Assim, eles já não são dois, mas sim uma só carne."</span>
   </div>
@@ -67,17 +26,10 @@
 <h2 class="tituloPresentes">LISTA DE PRESENTES</h2>
 <p class="subtituloPresentes">Escolha algo para nos abençoar!</p>
 
-<!-- 🔥 LISTA CORRETA -->
 <div class="produtos" id="listaPresentes"></div>
 
-<script src="script.js"></script>
+<script src="utils.js"></script>
+<script src="presentes.js"></script>
 
-<script>
-  // 🔥 GARANTE QUE CARREGA
-  document.addEventListener("DOMContentLoaded", () => {
-    carregarPresentes();
-  });
-</script>
-<script src="script.js"></script>
 </body>
 </html>

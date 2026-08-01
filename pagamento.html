@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pagamento</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="stylesheet" href="style.css">
+  <title>Pagamento</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
-
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
+
 <body>
 
 <header class="header">
@@ -20,89 +20,117 @@
 <section class="pagamento-container">
 
   <h1 class="nomes">PAULO & ALANA</h1>
+  <p class="subtitulo">VOCÊ ESTÁ PRESENTEANDO</p>
 
-  <p class="subtitulo">ESCOLHA UMA DAS FORMAS DE PAGAMENTO</p>
-
-  <input id="nome" placeholder="Seu nome" class="inputNome">
-
-  <div class="opcao" onclick="selecionar(this, 'pix')">
-  <span>PIX</span>
-  <img src="https://img.icons8.com/color/512/pix.png" class="iconePagamento">
+  <div class="checkoutProduto">
+    <img id="fotoProduto" alt="">
+    <h2 id="nomeProdutoCheckout"></h2>
+    <p id="valorOriginal" class="valorOriginalCheckout"></p>
+    <p id="valorRestante" class="valorRestanteCheckout"></p>
   </div>
 
-  <div class="opcao" onclick="selecionar(this, 'cartao')">
-  <span>Cartão de Crédito</span>
-  <img src="https://cdn-icons-png.flaticon.com/512/633/633611.png" class="iconePagamento">
+  <input
+    id="nome"
+    class="inputNome"
+    placeholder="Seu nome">
+
+  <input
+    id="email"
+    type="email"
+    class="inputNome"
+    placeholder="Seu e-mail">
+
+  <h3 class="tituloPagamento">
+    Como deseja nos presentear?
+  </h3>
+
+  <div class="checkoutCard">
+    <div class="checkoutTitulo" onclick="abrirOpcao('parcial')">
+      <strong>PARTE DO VALOR</strong>
+      <small>Contribua com qualquer quantia.</small>
+    </div>
+
+    <div id="parcial" class="checkoutConteudo">
+      <input
+        id="valorContribuicao"
+        type="number"
+        min="0.01"
+        step="0.01"
+        class="inputNome"
+        placeholder="Digite o valor que deseja contribuir">
+
+      <h4>Forma de pagamento</h4>
+
+      <div class="opcao" onclick="selecionar(this,'pix')">
+        <span>PIX</span>
+        <img
+          src="https://img.icons8.com/color/512/pix.png"
+          class="iconePagamento"
+          alt="PIX">
+      </div>
+
+      <div class="opcao" onclick="selecionar(this,'cartao')">
+        <span>Cartão de Crédito</span>
+        <img
+          src="https://cdn-icons-png.flaticon.com/512/633/633611.png"
+          class="iconePagamento"
+          alt="Cartão">
+      </div>
+
+      <button
+        type="button"
+        class="btnFinalizar"
+        onclick="continuarPagamento('parcial')">
+        CONTINUAR
+      </button>
+    </div>
   </div>
 
-  <button onclick="finalizarPagamento()" class="btnFinalizar">
-    FINALIZAR COMPRA
-  </button>
+  <div class="checkoutCard">
+    <div class="checkoutTitulo" onclick="abrirOpcao('total')">
+      <strong>VALOR COMPLETO</strong>
+      <small>Presenteie o restante deste item.</small>
+    </div>
+
+    <div id="total" class="checkoutConteudo">
+      <p>
+        Valor restante:
+        <strong id="valorCompletoTexto"></strong>
+      </p>
+
+      <h4>Forma de pagamento</h4>
+
+      <div class="opcao" onclick="selecionar(this,'pix')">
+        <span>PIX</span>
+        <img
+          src="https://img.icons8.com/color/512/pix.png"
+          class="iconePagamento"
+          alt="PIX">
+      </div>
+
+      <div class="opcao" onclick="selecionar(this,'cartao')">
+        <span>Cartão de Crédito</span>
+        <img
+          src="https://cdn-icons-png.flaticon.com/512/633/633611.png"
+          class="iconePagamento"
+          alt="Cartão">
+      </div>
+
+      <button
+        type="button"
+        class="btnFinalizar"
+        onclick="continuarPagamento('total')">
+        CONTINUAR
+      </button>
+    </div>
+  </div>
 
   <div id="areaPagamento"></div>
 
 </section>
 
-<script>
-let metodo = "";
-
-function selecionar(elemento, tipo){
-
-  metodo = tipo;
-
-  // remove seleção anterior
-  document.querySelectorAll(".opcao").forEach(op => {
-    op.classList.remove("ativa");
-  });
-
-  // adiciona na clicada
-  elemento.classList.add("ativa");
-}
-
-function finalizarPagamento(){
-
-  let nome = document.getElementById("nome").value;
-
-  if(!nome){
-    alert("Digite seu nome");
-    return;
-  }
-
-  if(!metodo){
-    alert("Escolha forma de pagamento");
-    return;
-  }
-
-  let compra = JSON.parse(localStorage.getItem("compra"));
-
-  let area = document.getElementById("areaPagamento");
-
-  if(metodo === "pix"){
-
-    area.innerHTML = `
-      <h3>Pagamento via Pix</h3>
-      <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=VALOR_${compra.total}">
-      <p>Chave: PAULOALANA@PIX</p>
-    `;
-
-  } else {
-
-    fetch("https://casamento-backend-f7e4.onrender.com/criar-pagamento", {
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({
-        nome: nome,
-        valor: compra.total
-      })
-    })
-    .then(res => res.json())
-    .then(data => {
-      window.open(data.link, "_blank");
-    });
-
-  }
-}
-</script>
+<script src="utils.js"></script>
+<script src="checkout.js"></script>
 
 </body>
 </html>

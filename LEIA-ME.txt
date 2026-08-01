@@ -1,0 +1,22 @@
+ARQUIVOS DESTA ETAPA
+
+1. Substitua:
+   - index.html
+   - presentes.html
+   - utils.js
+   - home.js
+
+2. Crie:
+   - presentes.js
+
+3. Substitua seu checkout.js pelo checkout.js deste pacote.
+
+4. Copie o conteúdo de ajustes.css para o FINAL do style.css.
+
+5. Na página pagamento.html, confirme que o final contém:
+   <script src="utils.js"></script>
+   <script src="checkout.js"></script>
+
+6. Não carregue script.js em index.html nem presentes.html.
+
+7. Abra sempre com Live Server.

@@ -1,15 +1,5 @@
 const API = "https://casamento-backend-f7e4.onrender.com";
 
-// ================= DATA LAYER =================
-
-function getProdutos(){
-return JSON.parse(localStorage.getItem("produtos")) || [];
-}
-
-function saveProdutos(produtos){
-localStorage.setItem("produtos", JSON.stringify(produtos));
-}
-
 
 // ================= RESUMO =================
 function resumo(){
@@ -26,69 +16,6 @@ function resumo(){
     <p>${compra.qtd} cotas</p>
     <p>Total: R$ ${compra.total}</p>
   `;
-}
-
-// ================= PAGAMENTO =================
-function finalizarPagamento(){
-
-  let nome = document.getElementById("nome").value;
-  let tipo = document.querySelector('input[name="pag"]:checked');
-
-  if(!nome){
-    alert("Digite seu nome");
-    return;
-  }
-
-  if(!tipo){
-    alert("Escolha forma de pagamento");
-    return;
-  }
-
-  let compra = JSON.parse(localStorage.getItem("compra"));
-
-  let area = document.getElementById("areaPagamento");
-
-  if(tipo.value === "pix"){
-
-    area.innerHTML = `
-      <h3>Pagamento via Pix</h3>
-
-      <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=VALOR_${compra.total}">
-
-      <p>Copie a chave:</p>
-      <strong>PAULOALANA@PIX</strong>
-
-      <p>Aguardando pagamento...</p>
-    `;
-
-  } else {
-
-    fetch("https://casamento-backend-f7e4.onrender.com/criar-pagamento", {
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json"
-      },
-      body: JSON.stringify({
-        nome: nome,
-        valor: compra.total
-      })
-    })
-    .then(res => res.json())
-    .then(data => {
-
-      window.open(data.link, "_blank");
-
-      area.innerHTML = `
-        <p>Pagamento aberto...</p>
-        <p>Após pagar, seu nome aparecerá automaticamente 💜</p>
-      `;
-
-    })
-    .catch(() => {
-      alert("Erro ao conectar com servidor");
-    });
-
-  }
 }
 
 // ================= INIT =================
@@ -143,60 +70,6 @@ function carregarPresencas() {
 
 carregarPresencas()
 
-// ================= SALVAR (CRIAR OU EDITAR) =================
-function salvarProduto(){
-
-  const nome = document.getElementById("nomeProduto").value
-  const valorTotal = parseFloat(document.getElementById("valorProduto").value)
-  const valorCota = parseFloat(document.getElementById("cotaProduto").value)
-  const imagem = document.getElementById("imagemProduto").value
-  const editIndex = document.getElementById("editIndex").value
-
-  if(!nome || !valorTotal || !valorCota){
-  alert("Preencha tudo")
-  return
-  }
-
-  if(valorCota > valorTotal){
-  alert("Cota maior que valor total")
-  return
-  }
-
-  const totalCotas = Math.ceil(valorTotal / valorCota)
-
-  let produtos = getProdutos()
-
-  const novoProduto = {
-  id: Date.now(),
-  nome,
-  valorTotal,
-  valorCota,
-  totalCotas,
-  cotasCompradas: 0,
-  imagem,
-  presentes: []
-  }
-
-  if(editIndex === ""){
-    produtos.push(novoProduto)
-    } else {
-    produtos[editIndex] = {
-    ...produtos[editIndex],
-    nome,
-    valorTotal,
-    valorCota,
-    totalCotas,
-    imagem
-  }
-}
-
-saveProdutos(produtos)
-
-limparFormulario()
-carregarProdutosAdmin()
-}
-
-
 // ================= EDITAR =================
 function editarProduto(index){
   let produtos = JSON.parse(localStorage.getItem("produtos"))
@@ -205,9 +78,9 @@ function editarProduto(index){
 
   document.getElementById("nomeProduto").value = p.nome
   document.getElementById("valorProduto").value = p.valor
-  document.getElementById("cotaProduto").value = p.cota
   document.getElementById("imagemProduto").value = p.imagem || ""
-
+  document.getElementById("linkProduto").value =
+    produto.link || "";
   document.getElementById("editIndex").value = index
 }
 
@@ -226,43 +99,127 @@ function excluirProduto(index){
 
 // ================= LISTAR =================
 function carregarProdutosAdmin(){
-  const lista = JSON.parse(localStorage.getItem("produtos")) || []
-  const div = document.getElementById("listaProdutos")
 
-  if(!div) return
+    const lista = getProdutos();
 
-  div.innerHTML = "<h3 style='margin-top:20px'>Presentes cadastrados</h3>"
+    const div = document.getElementById("listaProdutos");
 
-  lista.forEach((p, index)=>{
+    if(!div) return;
 
-    div.innerHTML += `
-      <div style="
-        margin-top:15px;
-        padding:10px;
-        border:1px solid #eee;
-        border-radius:8px;
-      ">
+    div.innerHTML = "<h3 style='margin-top:20px'>Presentes cadastrados</h3>";
 
-        ${p.imagem ? `<img src="${p.imagem}" style="width:60px; border-radius:6px;">` : ""}
+    lista.forEach((produto,index)=>{
 
-        <div><strong>${p.nome}</strong></div>
-        <div>R$ ${p.valor}</div>
+        div.innerHTML += `
 
-        <button onclick="editarProduto(${index})">Editar</button>
-        <button onclick="excluirProduto(${index})">Excluir</button>
+        <div class="produtoAdmin">
 
-      </div>
-    `
-  })
+            ${
+                produto.imagem
+                ? `<img src="${produto.imagem}" class="produtoAdminFoto">`
+                : ""
+            }
+
+            <div class="produtoAdminInfo">
+
+                <h3>${produto.nome}</h3>
+
+                <p>${produto.descricao || ""}</p>
+
+                <small>${produto.categoria || ""}</small>
+
+                ${mostrarPreco(produto)}
+
+            </div>
+
+            <div class="acoesProduto">
+
+                <button onclick="editarProduto(${index})">
+                    Editar
+                </button>
+
+                <button onclick="excluirProduto(${index})">
+                    Excluir
+                </button>
+
+            </div>
+
+        </div>
+
+        `;
+
+    });
+
+}
+function mostrarPreco(produto){
+
+    const restante = produto.valor - (produto.arrecadado || 0);
+
+    if((produto.arrecadado || 0) <= 0){
+
+        return `
+            <p class="valorAtual">
+                ${formatarMoeda(produto.valor)}
+            </p>
+        `;
+
+    }
+
+    if(restante <= 0){
+
+        return `
+
+            <p class="valorAntigo">
+
+                ${formatarMoeda(produto.valor)}
+
+            </p>
+
+            <p class="presenteado">
+
+                ❤️ PRESENTEADO
+
+            </p>
+
+        `;
+
+    }
+
+    return `
+
+        <p class="valorAntigo">
+
+            ${formatarMoeda(produto.valor)}
+
+        </p>
+
+        <p class="valorAtual">
+
+            ${formatarMoeda(restante)}
+
+        </p>
+
+    `;
+
 }
 
 // ================= LIMPAR =================
 function limparFormulario(){
-  document.getElementById("nomeProduto").value = ""
-  document.getElementById("valorProduto").value = ""
-  document.getElementById("cotaProduto").value = ""
-  document.getElementById("imagemProduto").value = ""
-  document.getElementById("editIndex").value = ""
+
+    document.getElementById("linkProduto").value="";
+
+    document.getElementById("nomeProduto").value="";
+
+    document.getElementById("descricaoProduto").value="";
+
+    document.getElementById("categoriaProduto").value="";
+
+    document.getElementById("valorProduto").value="";
+
+    document.getElementById("imagemProduto").value="";
+
+    document.getElementById("editIndex").value="";
+
 }
 
 carregarProdutosAdmin()
@@ -311,154 +268,95 @@ carregarPresencasAdmin()
 
 function carregarPresentes(){
 
-  const lista = getProdutos()
-  const container = document.getElementById("listaPresentes")
+    const container =
+        document.getElementById("listaPresentes");
 
-  if(!container) return
+    if(!container) return;
 
-  container.innerHTML = ""
+    container.innerHTML="";
 
-  lista.forEach((p, index)=>{
+    produtos.forEach((produto,index)=>{
 
-  
-  const progresso = (p.cotasCompradas / p.totalCotas) * 100
-  const esgotado = p.cotasCompradas >= p.totalCotas
+        const restante =
+            Math.max(
+                produto.valor - produto.arrecadado,
+                0
+            );  
 
-  container.innerHTML += `
-    <div class="card">
+        const porcentagem =
+            Math.min(
+                (produto.arrecadado/produto.valor)*100,
+                100
+            );
+            
 
-      ${p.imagem ? `<img src="${p.imagem}">` : ""}
+        container.innerHTML += `
 
-      <h3>${p.nome}</h3>
+        <div class="cardPresente">
 
-      <div class="progress">
-        <div style="width:${progresso}%"></div>
-      </div>
+            <img src="${produto.imagem}">
 
-      <small>${p.cotasCompradas} de ${p.totalCotas} cotas</small>
+            <h3>${produto.nome}</h3>
 
-      <p>R$ ${p.valorCota} por cota</p>
+            <div class="barraProgresso">
 
-      <button 
-        onclick="comprarCota(${index})"
-        ${esgotado ? "disabled" : ""}
-      >
-        ${esgotado ? "ESGOTADO" : "PRESENTEAR"}
-      </button>
+                <div
+                    class="barraValor"
+                    style="width:${porcentagem}%">
+                </div>
 
-    </div>
-    `
+            </div>
 
-  })
-}
+            ${
+                produto.arrecadado > 0
 
-function comprarCota(index){
+                ?
 
-  let produtos = getProdutos()
+                `<p class="valorAntigo">
 
-  const qtd = parseInt(prompt("Quantas cotas deseja?"))
-  if(!qtd || qtd <= 0) return
+                    <s>
 
-  const p = produtos[index]
+                        R$ ${produto.valor.toFixed(2).replace(".",",")}
 
-  if(p.cotasCompradas + qtd > p.totalCotas){
-  alert("Quantidade excede disponível")
-  return
-  }
+                    </s>
 
-  const total = qtd * p.valorCota
+                </p>
 
-  localStorage.setItem("compra", JSON.stringify({
-  index,
-  nome: p.nome,
-  qtd,
-  total
-  }))
+                <p class="valorAtual">
 
-  window.location = "pagamento.html"
-}
+                    R$ ${restante.toFixed(2).replace(".",",")}
 
-carregarPresentes()
+                </p>`
 
-// ================= RECADO =================
-function enviarRecado(){
+                :
 
-  const nomeInput = document.getElementById("nomeRecado")
-  const msgInput = document.getElementById("mensagemRecado")
+                `<p class="valorAtual">
 
-  if(!nomeInput || !msgInput){
-    alert("Erro interno: campos não encontrados")
-    return
-  }
+                    R$ ${produto.valor.toFixed(2).replace(".",",")}
 
-  const nome = nomeInput.value.trim()
-  const mensagem = msgInput.value.trim()
+                </p>`
+            }
+                          ${produto.link ? `
+              <a href="${produto.link}"
+                target="_blank"
+                class="btnVerProduto">
+                  Ver produto
+              </a>
+              ` : ""}
 
-  if(!nome || !mensagem){
-    alert("Preencha nome e mensagem")
-    return
-  }
+            <button
+                onclick="abrirCheckout(${index})">
 
-  // pega lista existente
-  const recados = JSON.parse(localStorage.getItem("recados")) || []
+                PRESENTEAR
 
-  // adiciona novo recado
-  recados.push({
-    nome,
-    mensagem,
-    data: new Date().toLocaleString()
-  })
+            </button>
 
-  // salva
-  localStorage.setItem("recados", JSON.stringify(recados))
-
-  // 🔥 FEEDBACK BONITO (sem alert)
-  mostrarFeedback("Sua mensagem foi enviada!")
-
-  // 🔥 LIMPA CAMPOS
-  nomeInput.value = ""
-  msgInput.value = ""
-}
-
-function carregarRecadosAdmin(){
-
-  const lista = JSON.parse(localStorage.getItem("recados")) || []
-  const div = document.getElementById("recados")
-
-  if(!div) return
-
-  div.innerHTML = ""
-
-  lista.reverse().forEach((r, index) => {
-
-    div.innerHTML += `
-      <div style="
-        margin-top:10px;
-        padding:10px;
-        border:1px solid #eee;
-        border-radius:8px;
-        display:flex;
-        justify-content:space-between;
-        align-items:center;
-      ">
-
-        <div>
-          <strong>${r.nome}</strong>
-          <p style="font-size:13px;">${r.mensagem}</p>
         </div>
 
-        <button onclick="excluirRecado(${index})" style="
-          background:none;
-          border:none;
-          cursor:pointer;
-          font-size:16px;
-        ">
-          🗑️
-        </button>
+        `;
 
-      </div>
-    `
-  })
+    });
+
 }
 
 function excluirRecado(index){
@@ -499,17 +397,6 @@ function mostrarFeedback(texto){
   }, 2500)
 }
 
-function toggleBloco(elemento){
-
-  const conteudo = elemento.nextElementSibling
-
-  if(conteudo.style.display === "block"){
-    conteudo.style.display = "none"
-  } else {
-    conteudo.style.display = "block"
-  }
-
-}
 
 // ================= GALERIA ADMIN =================
 
@@ -604,6 +491,7 @@ function abrirFoto(url){
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  
 
   carregarGaleria()
   carregarFotosAdmin()
@@ -656,3 +544,50 @@ document.addEventListener("DOMContentLoaded", () => {
   setInterval(atualizarContador, 1000)
 
 })
+
+
+let produtoCheckout = null;
+
+document.addEventListener("DOMContentLoaded",()=>{
+      document.getElementById("valorCompletoTexto").innerHTML =
+    "R$ " +
+    (produtoCheckout.valor - produtoCheckout.arrecadado)
+    .toFixed(2)
+    .replace(".",",");
+
+    if(!location.pathname.includes("pagamento"))
+        return;
+
+    produtoCheckout =
+        JSON.parse(
+            localStorage.getItem("produtoCheckout")
+        );
+
+    if(!produtoCheckout)
+        return;
+
+    document.getElementById("fotoProduto").src =
+        produtoCheckout.imagem;
+
+    document.getElementById("nomeProdutoCheckout").innerHTML =
+        produtoCheckout.nome;
+
+    if(produtoCheckout.arrecadado>0){
+
+        document.getElementById("valorOriginal").innerHTML=
+            "R$ "+produtoCheckout.valor.toFixed(2);
+
+        document.getElementById("valorRestante").innerHTML=
+            "R$ "+(produtoCheckout.valor-produtoCheckout.arrecadado).toFixed(2);
+
+    }else{
+
+        document.getElementById("valorOriginal").style.display="none";
+
+        document.getElementById("valorRestante").innerHTML=
+            "R$ "+produtoCheckout.valor.toFixed(2);
+
+    }
+
+});
+

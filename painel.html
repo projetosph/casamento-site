@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<meta charset="UTF-8">
-<title>Painel</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
@@ -13,75 +14,130 @@
   <a href="index.html" class="btnHeader">Sair</a>
 </header>
 
-<section class="painel-container">
+<section class="dashboard">
+  <h2 class="dashboardTitulo">PAINEL DOS NOIVOS</h2>
+  <p class="dashboardSub">Bem-vindos ao painel administrativo</p>
 
+  <div class="dashboardCards">
+    <div class="dashboardCard">
+      <div class="iconeDash">👥</div>
+      <h2 id="dashPresencas">0</h2>
+      <p>Confirmados</p>
+    </div>
+
+    <div class="dashboardCard">
+      <div class="iconeDash">💌</div>
+      <h2 id="dashRecados">0</h2>
+      <p>Recados</p>
+    </div>
+
+    <div class="dashboardCard">
+      <div class="iconeDash">🎁</div>
+      <h2 id="dashPresentes">0</h2>
+      <p>Presentes</p>
+    </div>
+
+    <div class="dashboardCard">
+      <div class="iconeDash">💰</div>
+      <h2 id="dashArrecadado">R$ 0,00</h2>
+      <p>Arrecadado</p>
+    </div>
+  </div>
+
+  <div class="metaPresentes">
+    <h3>META DOS PRESENTES</h3>
+
+    <div class="barraFundo">
+      <div id="barraDashboard" class="barraValor"></div>
+    </div>
+
+    <p id="textoMeta">R$ 0,00 de R$ 0,00</p>
+  </div>
+</section>
+
+<section class="painel-container">
   <h2 class="nomes">PAINEL DOS NOIVOS</h2>
 
-  <!-- ===== PRODUTOS ===== -->
   <div class="bloco">
     <div class="tituloBloco" onclick="toggleBloco(this)">
       Adicionar / Editar Presente
     </div>
 
     <div class="conteudoBloco">
+      <input id="nomeProduto" class="inputNome" placeholder="Nome do presente">
 
-      <input id="nomeProduto" placeholder="Nome do presente" class="inputNome">
-      <input id="valorProduto" placeholder="Valor total" class="inputNome">
-      <input id="cotaProduto" placeholder="Valor da cota" class="inputNome">
-      <input id="imagemProduto" placeholder="URL da imagem" class="inputNome">
+      <input id="descricaoProduto" class="inputNome" placeholder="Descrição">
 
+      <select id="categoriaProduto" class="inputNome">
+        <option value="">Categoria</option>
+        <option>Eletrodomésticos</option>
+        <option>Móveis</option>
+        <option>Decoração</option>
+        <option>Cozinha</option>
+        <option>Quarto</option>
+        <option>Banheiro</option>
+        <option>Experiências</option>
+        <option>Outros</option>
+      </select>
 
-      <button class="btnFinalizar" onclick="salvarProduto()">SALVAR</button>
+      <input id="valorProduto" type="number" min="0.01" step="0.01"
+             class="inputNome" placeholder="Valor do presente">
+
+      <input id="imagemProduto" class="inputNome"
+             placeholder="URL da imagem" oninput="previewImagemProduto()">
+
+      <div class="previewProdutoArea">
+        <img id="previewImagemProduto" alt="Pré-visualização do presente">
+        <span id="previewImagemTexto">A prévia da imagem aparecerá aqui.</span>
+      </div>
+
+      <input id="linkProduto" class="inputNome"
+             placeholder="Link da loja (opcional)">
+
+      <button type="button" class="btnFinalizar" onclick="salvarProduto()">
+        SALVAR
+      </button>
 
       <input type="hidden" id="editIndex">
 
       <div id="listaProdutos"></div>
-
     </div>
   </div>
 
-  <!-- ===== PRESENÇA ===== -->
   <div class="bloco">
     <div class="tituloBloco" onclick="toggleBloco(this)">
       Lista de Presença
     </div>
-
     <div class="conteudoBloco" id="presencas"></div>
   </div>
 
-  <!-- ===== RECADOS ===== -->
   <div class="bloco">
     <div class="tituloBloco" onclick="toggleBloco(this)">
       Recados
     </div>
-
     <div class="conteudoBloco" id="recados"></div>
   </div>
+
   <div class="bloco">
+    <div class="tituloBloco" onclick="toggleBloco(this)">
+      Galeria de Fotos
+    </div>
 
-  <div class="tituloBloco" onclick="toggleBloco(this)">
-    Galeria de Fotos
+    <div class="conteudoBloco">
+      <input id="fotoUrl" class="inputNome" placeholder="URL da imagem">
+      <button type="button" class="btnFinalizar" onclick="adicionarFoto()">
+        ADICIONAR FOTO
+      </button>
+
+      <div id="listaFotos"></div>
+    </div>
   </div>
-
-<div class="conteudoBloco">
-
-  <input id="fotoUrl" class="inputNome" placeholder="URL da imagem">
-  <button onclick="adicionarFoto()">ADICIONAR FOTO</button>
-
-
-  <div id="listaFotos"></div>
-
 </section>
 
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  carregarProdutosAdmin();
-  carregarPresencasAdmin();
-  carregarRecadosAdmin();
-});
-</script>
-
-<script src="script.js"></script>
+<script src="utils.js"></script>
+<script src="painel.js"></script>
+<script src="dashboard.js"></script>
 <script src="galeria.js"></script>
+
 </body>
 </html>
