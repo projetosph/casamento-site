@@ -163,6 +163,8 @@ async function gerarPix(compra) {
       </div>
     `;
 
+    rolarParaAreaPagamento(".pixMercadoPago");
+
     iniciarConsultaStatus(dados.pagamentoId, compra);
   } catch (erro) {
     console.error(erro);
@@ -200,8 +202,14 @@ async function abrirFormularioCartao(compra) {
   area.innerHTML = `
     <div class="cartaoMercadoPago">
       <h3>Pagamento com Cartão</h3>
-      <p class="valorCartaoCheckout">Valor: <strong>${formatarMoeda(compra.valor)}</strong></p>
+
+      <p class="valorCartaoCheckout">
+        Valor:
+        <strong>${formatarMoeda(compra.valor)}</strong>
+      </p>
+
       <div id="cardPaymentBrick_container"></div>
+
       <p id="statusPagamentoCartao"></p>
     </div>
   `;
@@ -210,27 +218,118 @@ async function abrirFormularioCartao(compra) {
     const { bricksBuilder } = await obterMercadoPago();
 
     const settings = {
-      initialization: { amount: Number(compra.valor) },
-      style: { theme: "default" },
+      initialization: {
+        amount: Number(compra.valor),
+        payer: {
+          email: compra.email
+        }
+      },
+
+      customization: {
+        paymentMethods: {
+          minInstallments: 1,
+          maxInstallments: 3
+        }
+      },
+
+      style: {
+        theme: "default"
+      },
+
       callbacks: {
-        onReady: () => console.log("Formulário de cartão pronto"),
-        onSubmit: (formData) => processarCartao(formData, compra),
+        onReady: () => {
+          console.log("Formulário de cartão pronto");
+          rolarParaAreaPagamento("#cardPaymentBrick_container");
+        },
+
+        onSubmit: (formData) => {
+          return processarCartao(formData, compra);
+        },
+
         onError: (erro) => {
           console.error("Erro no Card Payment Brick:", erro);
-          const status = document.getElementById("statusPagamentoCartao");
-          if (status) status.textContent = "Não foi possível carregar os dados do cartão.";
+
+          const status =
+            document.getElementById("statusPagamentoCartao");
+
+          if (status) {
+            status.textContent =
+              "Não foi possível carregar os dados do cartão.";
+          }
         }
       }
     };
 
-    cardPaymentBrickController = await bricksBuilder.create(
-      "cardPayment",
-      "cardPaymentBrick_container",
-      settings
-    );
+    cardPaymentBrickController =
+      await bricksBuilder.create(
+        "cardPayment",
+        "cardPaymentBrick_container",
+        settings
+      );
+
+    rolarParaAreaPagamento("#cardPaymentBrick_container");
+
   } catch (erro) {
     console.error(erro);
-    area.innerHTML = `<div class="resumoPagamentoPendente"><p>${escaparHtml(erro.message)}</p></div>`;
+
+    area.innerHTML = `
+      <div class="resumoPagamentoPendente">
+        <p>${escaparHtml(erro.message)}</p>
+      </div>
+    `;
+  }
+}
+
+
+function rolarParaAreaPagamento(seletor) {
+  const tentarRolar = () => {
+    const destino = document.querySelector(seletor);
+
+    if (!destino) return false;
+
+    const altura = destino.getBoundingClientRect().height;
+
+    if (
+      seletor.includes("cardPaymentBrick") &&
+      altura < 80
+    ) {
+      return false;
+    }
+
+    const topo =
+      destino.getBoundingClientRect().top +
+      window.scrollY -
+      20;
+
+    window.scrollTo({
+      top: topo,
+      behavior: "smooth"
+    });
+
+    return true;
+  };
+
+  [100, 300, 600, 1000, 1500].forEach((atraso) => {
+    setTimeout(tentarRolar, atraso);
+  });
+
+  const destino = document.querySelector(seletor);
+
+  if (
+    destino &&
+    typeof ResizeObserver !== "undefined"
+  ) {
+    const observer = new ResizeObserver(() => {
+      if (tentarRolar()) {
+        observer.disconnect();
+      }
+    });
+
+    observer.observe(destino);
+
+    setTimeout(() => {
+      observer.disconnect();
+    }, 3000);
   }
 }
 
