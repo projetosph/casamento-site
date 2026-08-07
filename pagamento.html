@@ -1,13 +1,12 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <title>Pagamento</title>
-
-  <link rel="stylesheet" href="style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pagamento</title>
+<link rel="stylesheet" href="style.css">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
+<script src="https://sdk.mercadopago.com/js/v2"></script>
 </head>
 
 <body>
@@ -19,137 +18,87 @@
 
 <section class="pagamento-container">
 
-  <h1 class="nomes">PAULO & ALANA</h1>
-  <p class="subtitulo">VOCÊ ESTÁ PRESENTEANDO</p>
+<h1 class="nomes">PAULO & ALANA</h1>
+<p class="subtitulo">VOCÊ ESTÁ PRESENTEANDO</p>
 
-  <div class="checkoutProduto">
-    <img id="fotoProduto" alt="">
-    <h2 id="nomeProdutoCheckout"></h2>
-    <p id="valorOriginal" class="valorOriginalCheckout"></p>
-    <p id="valorRestante" class="valorRestanteCheckout"></p>
+<div class="checkoutProduto">
+  <img id="fotoProduto">
+  <h2 id="nomeProdutoCheckout"></h2>
+  <p id="valorOriginal" class="valorOriginalCheckout"></p>
+  <p id="valorRestante" class="valorRestanteCheckout"></p>
+</div>
+
+<input id="nome" class="inputNome" placeholder="Seu nome">
+<input id="email" type="email" class="inputNome" placeholder="Seu e-mail" autocomplete="email">
+
+<h3 class="tituloPagamento">Como deseja nos presentear?</h3>
+
+<div class="checkoutCard">
+  <div class="checkoutTitulo" onclick="abrirOpcao('parcial')">
+    <strong>PARTE DO VALOR</strong>
+    <small>Contribua com qualquer quantia.</small>
   </div>
 
-  <input
-    id="nome"
-    class="inputNome"
-    placeholder="Seu nome">
+  <div id="parcial" class="checkoutConteudo">
+    <input id="valorContribuicao" type="number" min="0.01" step="0.01"
+           class="inputNome" placeholder="Digite o valor que deseja contribuir">
 
-  <input
-    id="email"
-    type="email"
-    class="inputNome"
-    placeholder="Seu e-mail">
+    <h4>Forma de pagamento</h4>
 
-  <h3 class="tituloPagamento">
-    Como deseja nos presentear?
-  </h3>
-
-  <div class="checkoutCard">
-    <div class="checkoutTitulo" onclick="abrirOpcao('parcial')">
-      <strong>PARTE DO VALOR</strong>
-      <small>Contribua com qualquer quantia.</small>
+    <div class="opcao" onclick="selecionar(this,'pix')">
+      <span>PIX</span>
+      <img src="https://img.icons8.com/color/512/pix.png" class="iconePagamento">
     </div>
 
-    <div id="parcial" class="checkoutConteudo">
-      <input
-        id="valorContribuicao"
-        type="number"
-        min="0.01"
-        step="0.01"
-        class="inputNome"
-        placeholder="Digite o valor que deseja contribuir">
-
-      <h4>Forma de pagamento</h4>
-
-      <div class="opcao" onclick="selecionar(this,'pix')">
-        <span>PIX</span>
-        <img
-          src="https://img.icons8.com/color/512/pix.png"
-          class="iconePagamento"
-          alt="PIX">
-      </div>
-
-      <div class="opcao" onclick="selecionar(this,'cartao')">
-        <span>Cartão de Crédito</span>
-        <img
-          src="https://cdn-icons-png.flaticon.com/512/633/633611.png"
-          class="iconePagamento"
-          alt="Cartão">
-      </div>
-
-      <button
-        type="button"
-        class="btnFinalizar"
-        onclick="continuarPagamento('parcial')">
-        CONTINUAR
-      </button>
+    <div class="opcao" onclick="selecionar(this,'cartao')">
+      <span>Cartão de Crédito</span>
+      <img src="https://cdn-icons-png.flaticon.com/512/633/633611.png" class="iconePagamento">
     </div>
+
+    <button type="button" class="btnFinalizar" onclick="continuarPagamento('parcial')">
+      CONTINUAR
+    </button>
+  </div>
+</div>
+
+<div class="checkoutCard">
+  <div class="checkoutTitulo" onclick="abrirOpcao('total')">
+    <strong>VALOR COMPLETO</strong>
+    <small>Presenteie o restante deste item.</small>
   </div>
 
-  <div class="checkoutCard">
-    <div class="checkoutTitulo" onclick="abrirOpcao('total')">
-      <strong>VALOR COMPLETO</strong>
-      <small>Presenteie o restante deste item.</small>
+  <div id="total" class="checkoutConteudo">
+    <p>Valor restante: <strong id="valorCompletoTexto"></strong></p>
+
+    <h4>Forma de pagamento</h4>
+
+    <div class="opcao" onclick="selecionar(this,'pix')">
+      <span>PIX</span>
+      <img src="https://img.icons8.com/color/512/pix.png" class="iconePagamento">
     </div>
 
-    <div id="total" class="checkoutConteudo">
-      <p>
-        Valor restante:
-        <strong id="valorCompletoTexto"></strong>
-      </p>
-
-      <h4>Forma de pagamento</h4>
-
-      <div class="opcao" onclick="selecionar(this,'pix')">
-        <span>PIX</span>
-        <img
-          src="https://img.icons8.com/color/512/pix.png"
-          class="iconePagamento"
-          alt="PIX">
-      </div>
-
-      <div class="opcao" onclick="selecionar(this,'cartao')">
-        <span>Cartão de Crédito</span>
-        <img
-          src="https://cdn-icons-png.flaticon.com/512/633/633611.png"
-          class="iconePagamento"
-          alt="Cartão">
-      </div>
-
-      <button
-        type="button"
-        class="btnFinalizar"
-        onclick="continuarPagamento('total')">
-        CONTINUAR
-      </button>
+    <div class="opcao" onclick="selecionar(this,'cartao')">
+      <span>Cartão de Crédito</span>
+      <img src="https://cdn-icons-png.flaticon.com/512/633/633611.png" class="iconePagamento">
     </div>
+
+    <button type="button" class="btnFinalizar" onclick="continuarPagamento('total')">
+      CONTINUAR
+    </button>
   </div>
+</div>
 
-  <div id="areaPagamento"></div>
+<div id="areaPagamento"></div>
 
 </section>
 
-<div
-  id="popupPagamentoAprovado"
-  class="popupPagamentoOverlay"
-  style="display:none;">
-
+<div id="popupPagamentoAprovado" class="popupPagamentoOverlay" style="display:none;">
   <div class="popupPagamento">
-
     <div class="popupCheck">✓</div>
-
     <h2>PAGAMENTO APROVADO!</h2>
-
-    <p>
-      Muito obrigado pelo presente.
-    </p>
-
-    <p class="popupRedirecionando">
-      Voltando para a página inicial...
-    </p>
-
+    <p>Muito obrigado pelo presente.</p>
+    <p class="popupRedirecionando">Voltando para a página inicial...</p>
   </div>
-
 </div>
 
 <script src="utils.js"></script>
