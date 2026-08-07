@@ -98,8 +98,21 @@ async function continuarPagamento(tipo) {
   const nome = document.getElementById("nome")?.value.trim();
   const email = document.getElementById("email")?.value.trim();
 
-  if (!nome || !email) {
-    alert("Digite seu nome e seu e-mail.");
+    if (!nome) {
+    alert("Digite seu nome.");
+    return;
+  }
+
+  if (!email) {
+    alert("Digite seu e-mail.");
+    return;
+  }
+
+  const emailValido =
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  if (!emailValido) {
+    alert("Digite um e-mail válido.");
     return;
   }
 
@@ -223,20 +236,6 @@ async function gerarPix(compra) {
           COPIAR CÓDIGO PIX
         </button>
 
-        ${
-          dados.ticketUrl
-            ? `
-              <a
-                class="btnVerProduto"
-                href="${dados.ticketUrl}"
-                target="_blank"
-                rel="noopener noreferrer">
-                ABRIR PIX
-              </a>
-            `
-            : ""
-        }
-
         <p id="statusPagamentoPix">
           Aguardando confirmação do pagamento...
         </p>
@@ -280,20 +279,33 @@ function iniciarConsultaStatus(pagamentoId, compra) {
 }
 
 async function consultarStatusPagamento(pagamentoId, compra) {
+
   try {
+
     const resposta = await fetch(
       `${API}/pagamentos/${pagamentoId}/status`
     );
 
     const dados = await resposta.json();
 
-    if (!resposta.ok) return;
+    if (!resposta.ok) {
+      console.error("Erro ao consultar pagamento:", dados);
+      return;
+    }
 
     const status = document.getElementById("statusPagamentoPix");
 
     if (dados.status === "approved") {
-      clearInterval(intervaloStatus);
-      intervaloStatus = null;
+
+      console.log("PAGAMENTO APROVADO DETECTADO");
+
+      if (intervaloStatus) {
+
+        clearInterval(intervaloStatus);
+
+        intervaloStatus = null;
+
+      }
 
       aplicarPagamentoAprovado(
         pagamentoId,
@@ -301,29 +313,44 @@ async function consultarStatusPagamento(pagamentoId, compra) {
         Number(dados.valor) || Number(compra.valor)
       );
 
-      if (status) {
-        status.textContent =
-          "Pagamento aprovado! Muito obrigado pelo presente.";
-      }
+      mostrarPopupPagamentoAprovado();
 
       return;
+
     }
 
     if (
       dados.status === "rejected" ||
       dados.status === "cancelled"
     ) {
-      clearInterval(intervaloStatus);
-      intervaloStatus = null;
+
+      if (intervaloStatus) {
+        clearInterval(intervaloStatus);
+        intervaloStatus = null;
+      }
 
       if (status) {
         status.textContent =
           "Pagamento não aprovado. Gere um novo PIX.";
       }
+
+      return;
     }
+
+    if (status) {
+      status.textContent =
+        "Aguardando confirmação do pagamento...";
+    }
+
   } catch (erro) {
-    console.error("Erro ao consultar pagamento:", erro);
+
+    console.error(
+      "Erro ao consultar pagamento:",
+      erro
+    );
+
   }
+
 }
 
 function aplicarPagamentoAprovado(pagamentoId, compra, valorPago) {
@@ -363,4 +390,43 @@ function aplicarPagamentoAprovado(pagamentoId, compra, valorPago) {
 
   saveProdutos(produtos);
   localStorage.setItem(chave, "sim");
+}
+function mostrarPopupPagamentoAprovado() {
+
+  console.log("Abrindo popup de pagamento aprovado");
+
+  const popup =
+    document.getElementById("popupPagamentoAprovado");
+
+  if (!popup) {
+
+    console.error(
+      "ERRO: #popupPagamentoAprovado não existe no pagamento.html"
+    );
+
+    return;
+  }
+
+  // Força o popup a aparecer,
+  // independentemente de outras regras do CSS
+  popup.style.setProperty("display", "flex", "important");
+  popup.style.position = "fixed";
+  popup.style.inset = "0";
+  popup.style.width = "100%";
+  popup.style.height = "100%";
+  popup.style.background = "rgba(0, 0, 0, 0.65)";
+  popup.style.alignItems = "center";
+  popup.style.justifyContent = "center";
+  popup.style.zIndex = "999999";
+
+  setTimeout(() => {
+
+    console.log("Redirecionando para a Home");
+
+    // Funciona tanto no Live Server
+    // quanto abrindo o HTML diretamente
+    window.location.href = "index.html";
+
+  }, 3000);
+
 }

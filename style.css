@@ -1652,3 +1652,203 @@ h1, h2, h3 {
   margin-top: 16px;
   font-size: 13px;
 }
+
+/* ================= POPUP PAGAMENTO APROVADO ================= */
+
+.popupPagamentoOverlay {
+
+  position: fixed;
+
+  inset: 0;
+
+  background: rgba(0, 0, 0, 0.55);
+
+  display: flex;
+
+  justify-content: center;
+
+  align-items: center;
+
+  padding: 20px;
+
+  z-index: 99999;
+
+  animation: aparecerOverlay .3s ease;
+
+}
+
+.popupPagamento {
+
+  width: 100%;
+
+  max-width: 380px;
+
+  background: white;
+
+  padding: 40px 25px;
+
+  text-align: center;
+
+  box-shadow: 0 20px 60px rgba(0,0,0,.25);
+
+  animation: aparecerPopup .35s ease;
+
+}
+
+.popupCheck {
+
+  width: 65px;
+
+  height: 65px;
+
+  margin: 0 auto 20px;
+
+  border: 2px solid #2f3e3a;
+
+  border-radius: 50%;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  font-size: 35px;
+
+  color: #2f3e3a;
+
+}
+
+.popupPagamento h2 {
+
+  font-size: 22px;
+
+  letter-spacing: 2px;
+
+  margin-bottom: 12px;
+
+}
+
+.popupPagamento p {
+
+  font-size: 14px;
+
+  margin-bottom: 10px;
+
+}
+
+.popupRedirecionando {
+
+  color: #888;
+
+  font-size: 12px !important;
+
+  margin-top: 20px;
+
+}
+
+@keyframes aparecerOverlay {
+
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+
+}
+
+@keyframes aparecerPopup {
+
+  from {
+    opacity: 0;
+    transform: scale(.92);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+}
+
+/* =========================
+   POPUP PAGAMENTO APROVADO
+========================= */
+
+.popupPagamentoOverlay {
+  position: fixed;
+  inset: 0;
+
+  width: 100%;
+  height: 100%;
+
+  background: rgba(0, 0, 0, 0.6);
+
+  display: none;
+
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+
+  z-index: 999999;
+}
+
+.popupPagamentoOverlay.ativo {
+  display: flex;
+}
+
+.popupPagamento {
+  width: 100%;
+  max-width: 380px;
+
+  background: white;
+
+  padding: 40px 25px;
+
+  text-align: center;
+
+  box-shadow: 0 20px 60px rgba(0,0,0,.3);
+}
+
+.popupCheck {
+  width: 70px;
+  height: 70px;
+
+  margin: 0 auto 20px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 2px solid #2f3e3a;
+  border-radius: 50%;
+
+  color: #2f3e3a;
+
+  font-size: 38px;
+  font-weight: bold;
+}
+
+.popupPagamento h2 {
+  margin-bottom: 15px;
+
+  font-size: 21px;
+  letter-spacing: 2px;
+}
+
+.popupPagamento p {
+  margin: 8px 0;
+
+  font-size: 14px;
+}
+
+.popupRedirecionando {
+  margin-top: 20px !important;
+
+  color: #888;
+
+  font-size: 12px !important;
+}
