@@ -1,10 +1,14 @@
 // ==================================================
-// PAINEL DOS NOIVOS
+// PAINEL DOS NOIVOS - PRESENTES NO POSTGRESQL
 // ==================================================
 
-document.addEventListener("DOMContentLoaded", () => {
-  migrarProdutosAntigos();
-  carregarProdutosAdmin();
+const API_PAINEL = "https://casamento-backend-f7e4.onrender.com";
+let produtosAdmin = [];
+
+document.addEventListener("DOMContentLoaded", async () => {
+  await migrarProdutosLocaisParaBanco();
+  await carregarProdutosAdmin();
+
   carregarPresencasAdmin();
   carregarRecadosAdmin();
   previewImagemProduto();
@@ -14,127 +18,221 @@ document.addEventListener("DOMContentLoaded", () => {
 // PRODUTOS
 // ==================================================
 
-function salvarProduto() {
-  const nome = document.getElementById("nomeProduto").value.trim();
-  const descricao = document.getElementById("descricaoProduto").value.trim();
-  const categoria = document.getElementById("categoriaProduto").value;
-  const valor = Number(document.getElementById("valorProduto").value);
-  const imagemDigitada = document.getElementById("imagemProduto").value.trim();
-  const link = document.getElementById("linkProduto").value.trim();
-  const editIndex = document.getElementById("editIndex").value;
+async function salvarProduto() {
+  const nome =
+    document.getElementById("nomeProduto").value.trim();
+
+  const descricao =
+    document.getElementById("descricaoProduto").value.trim();
+
+  const categoria =
+    document.getElementById("categoriaProduto").value;
+
+  const valor =
+    Number(document.getElementById("valorProduto").value);
+
+  const imagemDigitada =
+    document.getElementById("imagemProduto").value.trim();
+
+  const link =
+    document.getElementById("linkProduto").value.trim();
+
+  const editIndex =
+    document.getElementById("editIndex").value;
 
   if (!nome || !Number.isFinite(valor) || valor <= 0) {
     alert("Preencha o nome e um valor válido.");
     return;
   }
 
-  const produtos = getProdutos();
   const imagem = converterUrlImagem(imagemDigitada);
-
-  const anterior =
-    editIndex !== "" && produtos[Number(editIndex)]
-      ? produtos[Number(editIndex)]
-      : null;
+  const editando = editIndex !== "";
+  const anterior = editando
+    ? produtosAdmin[Number(editIndex)]
+    : null;
 
   const produto = {
-    id: anterior?.id ?? Date.now(),
     nome,
     descricao,
     categoria,
     imagem,
     link,
-    valor,
-    arrecadado: Number(anterior?.arrecadado) || 0,
-    comprado: Boolean(anterior?.comprado),
-    historico: Array.isArray(anterior?.historico) ? anterior.historico : [],
-    criadoEm: anterior?.criadoEm ?? new Date().toISOString()
+    valor
   };
 
-  if (editIndex !== "") {
-    produtos[Number(editIndex)] = produto;
-  } else {
-    produtos.push(produto);
+  try {
+    const url = editando
+      ? `${API_PAINEL}/presentes/${anterior.id}`
+      : `${API_PAINEL}/presentes`;
+
+    const resposta = await fetch(url, {
+      method: editando ? "PUT" : "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(produto)
+    });
+
+    const dados = await resposta.json();
+
+    if (!resposta.ok) {
+      throw new Error(
+        dados.erro || "Não foi possível salvar o presente."
+      );
+    }
+
+    limparFormulario();
+    await carregarProdutosAdmin();
+
+    if (typeof atualizarDashboard === "function") {
+      atualizarDashboard();
+    }
+
+    alert(
+      editando
+        ? "Presente atualizado!"
+        : "Presente cadastrado!"
+    );
+  } catch (erro) {
+    console.error("Erro ao salvar presente:", erro);
+    alert(erro.message);
   }
-
-  saveProdutos(produtos);
-  limparFormulario();
-  carregarProdutosAdmin();
-
-  if (typeof atualizarDashboard === "function") {
-    atualizarDashboard();
-  }
-
-  alert(editIndex !== "" ? "Presente atualizado!" : "Presente cadastrado!");
 }
 
 function editarProduto(index) {
-  const produtos = getProdutos();
-  const produto = produtos[index];
-
+  const produto = produtosAdmin[index];
   if (!produto) return;
 
-  document.getElementById("nomeProduto").value = produto.nome || "";
-  document.getElementById("descricaoProduto").value = produto.descricao || "";
-  document.getElementById("categoriaProduto").value = produto.categoria || "";
-  document.getElementById("valorProduto").value = produto.valor || "";
-  document.getElementById("imagemProduto").value = produto.imagem || "";
-  document.getElementById("linkProduto").value = produto.link || "";
+  document.getElementById("nomeProduto").value =
+    produto.nome || "";
+
+  document.getElementById("descricaoProduto").value =
+    produto.descricao || "";
+
+  document.getElementById("categoriaProduto").value =
+    produto.categoria || "";
+
+  document.getElementById("valorProduto").value =
+    produto.valor || "";
+
+  document.getElementById("imagemProduto").value =
+    produto.imagem || "";
+
+  document.getElementById("linkProduto").value =
+    produto.link || "";
+
   document.getElementById("editIndex").value = index;
 
   previewImagemProduto();
 
-  const formulario = document.getElementById("nomeProduto");
-  formulario?.scrollIntoView({ behavior: "smooth", block: "center" });
+  const formulario =
+    document.getElementById("nomeProduto");
+
+  formulario?.scrollIntoView({
+    behavior: "smooth",
+    block: "center"
+  });
+
   formulario?.focus();
 }
 
-function excluirProduto(index) {
+async function excluirProduto(index) {
+  const produto = produtosAdmin[index];
+
+  if (!produto) return;
   if (!confirm("Deseja excluir este produto?")) return;
 
-  const produtos = getProdutos();
+  try {
+    const resposta = await fetch(
+      `${API_PAINEL}/presentes/${produto.id}`,
+      { method: "DELETE" }
+    );
 
-  if (!produtos[index]) return;
+    const dados = await resposta.json();
 
-  produtos.splice(index, 1);
-  saveProdutos(produtos);
-  carregarProdutosAdmin();
+    if (!resposta.ok) {
+      throw new Error(
+        dados.erro || "Não foi possível excluir o presente."
+      );
+    }
 
-  if (typeof atualizarDashboard === "function") {
-    atualizarDashboard();
+    await carregarProdutosAdmin();
+
+    if (typeof atualizarDashboard === "function") {
+      atualizarDashboard();
+    }
+  } catch (erro) {
+    console.error("Erro ao excluir presente:", erro);
+    alert(erro.message);
   }
 }
 
-function carregarProdutosAdmin() {
-  const lista = getProdutos();
-  const container = document.getElementById("listaProdutos");
+async function carregarProdutosAdmin() {
+  const container =
+    document.getElementById("listaProdutos");
 
   if (!container) return;
 
-  if (lista.length === 0) {
-    container.innerHTML = `
-      <h3 class="tituloListaAdmin">Presentes cadastrados</h3>
-      <p class="listaVazia">Nenhum presente cadastrado.</p>
-    `;
-    return;
-  }
-
   container.innerHTML = `
     <h3 class="tituloListaAdmin">Presentes cadastrados</h3>
-    <div class="gridProdutosAdmin">
-      ${lista.map((produto, index) => criarCardProdutoAdmin(produto, index)).join("")}
-    </div>
+    <p class="listaVazia">Carregando...</p>
   `;
+
+  try {
+    const resposta =
+      await fetch(`${API_PAINEL}/presentes`);
+
+    const dados = await resposta.json();
+
+    if (!resposta.ok) {
+      throw new Error(
+        dados.erro || "Não foi possível carregar os presentes."
+      );
+    }
+
+    produtosAdmin = Array.isArray(dados) ? dados : [];
+
+    if (produtosAdmin.length === 0) {
+      container.innerHTML = `
+        <h3 class="tituloListaAdmin">Presentes cadastrados</h3>
+        <p class="listaVazia">Nenhum presente cadastrado.</p>
+      `;
+      return;
+    }
+
+    container.innerHTML = `
+      <h3 class="tituloListaAdmin">Presentes cadastrados</h3>
+      <div class="gridProdutosAdmin">
+        ${produtosAdmin
+          .map(
+            (produto, index) =>
+              criarCardProdutoAdmin(produto, index)
+          )
+          .join("")}
+      </div>
+    `;
+  } catch (erro) {
+    console.error("Erro ao carregar presentes:", erro);
+
+    container.innerHTML = `
+      <h3 class="tituloListaAdmin">Presentes cadastrados</h3>
+      <p class="listaVazia">
+        Não foi possível carregar os presentes.
+      </p>
+    `;
+  }
 }
 
 function criarCardProdutoAdmin(produto, index) {
   const imagem = produto.imagem
     ? `<img src="${produto.imagem}" class="produtoAdminFoto"
-            alt="${escaparHtml(produto.nome)}"
-            onerror="this.style.display='none'">`
+             alt="${escaparHtml(produto.nome)}"
+             onerror="this.style.display='none'">`
     : `<div class="produtoAdminSemFoto">Sem imagem</div>`;
 
   const linkLoja = produto.link
-    ? `<a href="${produto.link}" target="_blank" rel="noopener noreferrer"
+    ? `<a href="${produto.link}" target="_blank"
+          rel="noopener noreferrer"
           class="btnVerProduto">Ver produto</a>`
     : "";
 
@@ -145,21 +243,32 @@ function criarCardProdutoAdmin(produto, index) {
       <div class="produtoAdminInfo">
         <h3>${escaparHtml(produto.nome || "Sem nome")}</h3>
 
-        ${produto.descricao
-          ? `<p>${escaparHtml(produto.descricao)}</p>`
-          : ""}
+        ${
+          produto.descricao
+            ? `<p>${escaparHtml(produto.descricao)}</p>`
+            : ""
+        }
 
-        ${produto.categoria
-          ? `<small>${escaparHtml(produto.categoria)}</small>`
-          : ""}
+        ${
+          produto.categoria
+            ? `<small>${escaparHtml(produto.categoria)}</small>`
+            : ""
+        }
 
         ${mostrarPreco(produto)}
         ${linkLoja}
       </div>
 
       <div class="acoesProduto">
-        <button type="button" onclick="editarProduto(${index})">Editar</button>
-        <button type="button" onclick="excluirProduto(${index})">Excluir</button>
+        <button type="button"
+                onclick="editarProduto(${index})">
+          Editar
+        </button>
+
+        <button type="button"
+                onclick="excluirProduto(${index})">
+          Excluir
+        </button>
       </div>
     </article>
   `;
@@ -212,7 +321,8 @@ function previewImagemProduto() {
     preview.removeAttribute("src");
     preview.style.display = "none";
     texto.style.display = "block";
-    texto.textContent = "A prévia da imagem aparecerá aqui.";
+    texto.textContent =
+      "A prévia da imagem aparecerá aqui.";
     return;
   }
 
@@ -223,7 +333,8 @@ function previewImagemProduto() {
   preview.onerror = () => {
     preview.style.display = "none";
     texto.style.display = "block";
-    texto.textContent = "Não foi possível carregar essa URL como imagem.";
+    texto.textContent =
+      "Não foi possível carregar essa URL como imagem.";
   };
 
   preview.onload = () => {
@@ -235,7 +346,8 @@ function previewImagemProduto() {
 function converterUrlImagem(url) {
   if (!url) return "";
 
-  const drive = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+  const drive =
+    url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
 
   if (drive?.[1]) {
     return `https://drive.google.com/thumbnail?id=${drive[1]}&sz=w1200`;
@@ -243,53 +355,82 @@ function converterUrlImagem(url) {
 
   const driveOpen = url.match(/[?&]id=([^&]+)/);
 
-  if (url.includes("drive.google.com") && driveOpen?.[1]) {
+  if (
+    url.includes("drive.google.com") &&
+    driveOpen?.[1]
+  ) {
     return `https://drive.google.com/thumbnail?id=${driveOpen[1]}&sz=w1200`;
   }
 
   return url;
 }
 
-function migrarProdutosAntigos() {
-  const produtos = getProdutos();
-  let alterou = false;
+/*
+  Migração única:
+  se o PostgreSQL ainda estiver vazio e este navegador tiver
+  os presentes antigos no localStorage, envia esses presentes
+  para o banco automaticamente.
+*/
+async function migrarProdutosLocaisParaBanco() {
+  try {
+    const resposta = await fetch(`${API_PAINEL}/presentes`);
+    const banco = await resposta.json();
 
-  const migrados = produtos.map((produto) => {
-    const valor =
-      Number(produto.valor ?? produto.valorTotal) || 0;
+    if (!resposta.ok || !Array.isArray(banco)) return;
+    if (banco.length > 0) return;
 
-    const arrecadado =
-      Number(produto.arrecadado) ||
-      (
-        Number(produto.cotasCompradas) > 0 &&
-        Number(produto.valorCota) > 0
-          ? Number(produto.cotasCompradas) * Number(produto.valorCota)
-          : 0
+    if (typeof getProdutos !== "function") return;
+
+    const locais = getProdutos();
+
+    if (!Array.isArray(locais) || locais.length === 0) return;
+
+    console.log(
+      `Migrando ${locais.length} presente(s) antigo(s) para o PostgreSQL...`
+    );
+
+    for (const produto of locais) {
+      const valor =
+        Number(produto.valor ?? produto.valorTotal) || 0;
+
+      if (!produto.nome || valor <= 0) continue;
+
+      const respostaImportacao = await fetch(
+        `${API_PAINEL}/presentes`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            nome: produto.nome,
+            descricao: produto.descricao || "",
+            categoria: produto.categoria || "",
+            valor,
+            arrecadado: Number(produto.arrecadado) || 0,
+            imagem: converterUrlImagem(
+              produto.imagem || produto.img || ""
+            ),
+            link: produto.link || "",
+            comprado: Boolean(produto.comprado)
+          })
+        }
       );
 
-    const normalizado = {
-      id: produto.id ?? Date.now() + Math.floor(Math.random() * 1000),
-      nome: produto.nome || "Presente",
-      descricao: produto.descricao || "",
-      categoria: produto.categoria || "",
-      imagem: converterUrlImagem(produto.imagem || produto.img || ""),
-      link: produto.link || "",
-      valor,
-      arrecadado: Math.min(arrecadado, valor || arrecadado),
-      comprado: Boolean(produto.comprado) || (valor > 0 && arrecadado >= valor),
-      historico: Array.isArray(produto.historico) ? produto.historico : [],
-      criadoEm: produto.criadoEm || new Date().toISOString()
-    };
-
-    if (JSON.stringify(normalizado) !== JSON.stringify(produto)) {
-      alterou = true;
+      if (!respostaImportacao.ok) {
+        console.error(
+          "Falha ao migrar presente:",
+          produto.nome
+        );
+      }
     }
 
-    return normalizado;
-  });
-
-  if (alterou) {
-    saveProdutos(migrados);
+    console.log("Migração de presentes concluída.");
+  } catch (erro) {
+    console.error(
+      "Não foi possível migrar os presentes antigos:",
+      erro
+    );
   }
 }
 
@@ -466,3 +607,4 @@ function escaparHtml(valor) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
+

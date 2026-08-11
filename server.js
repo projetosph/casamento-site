@@ -15,6 +15,197 @@ app.get("/", (req, res) => {
   res.json({ ok: true, servico: "casamento-backend", mensagem: "Backend funcionando" });
 });
 
+
+// ==========================================================
+// PRESENTES - POSTGRESQL
+// ==========================================================
+
+function normalizarPresente(row) {
+  return {
+    id: row.id,
+    nome: row.nome,
+    descricao: row.descricao || "",
+    categoria: row.categoria || "",
+    valor: Number(row.valor) || 0,
+    arrecadado: Number(row.arrecadado) || 0,
+    imagem: row.imagem || "",
+    link: row.link || "",
+    comprado: Boolean(row.comprado),
+    criadoEm: row.criado_em
+  };
+}
+
+app.get("/presentes", async (req, res) => {
+  try {
+    const resultado = await pool.query(`
+      SELECT
+        id, nome, descricao, categoria, valor,
+        arrecadado, imagem, link, comprado, criado_em
+      FROM presentes
+      ORDER BY id ASC
+    `);
+
+    res.json(resultado.rows.map(normalizarPresente));
+  } catch (erro) {
+    console.error("Erro ao listar presentes:", erro);
+    res.status(500).json({
+      erro: "Não foi possível carregar os presentes."
+    });
+  }
+});
+
+app.post("/presentes", async (req, res) => {
+  try {
+    const {
+      nome,
+      descricao = "",
+      categoria = "",
+      valor,
+      arrecadado = 0,
+      imagem = "",
+      link = "",
+      comprado = false
+    } = req.body;
+
+    const valorNumerico = Number(valor);
+    const arrecadadoNumerico = Number(arrecadado) || 0;
+
+    if (!nome || !Number.isFinite(valorNumerico) || valorNumerico <= 0) {
+      return res.status(400).json({
+        erro: "Nome e valor válido são obrigatórios."
+      });
+    }
+
+    const resultado = await pool.query(
+      `
+        INSERT INTO presentes
+          (nome, descricao, categoria, valor, arrecadado, imagem, link, comprado)
+        VALUES
+          ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING *
+      `,
+      [
+        String(nome).trim(),
+        String(descricao || "").trim(),
+        String(categoria || "").trim(),
+        valorNumerico,
+        Math.max(arrecadadoNumerico, 0),
+        String(imagem || "").trim(),
+        String(link || "").trim(),
+        Boolean(comprado)
+      ]
+    );
+
+    res.status(201).json(
+      normalizarPresente(resultado.rows[0])
+    );
+  } catch (erro) {
+    console.error("Erro ao cadastrar presente:", erro);
+    res.status(500).json({
+      erro: "Não foi possível cadastrar o presente."
+    });
+  }
+});
+
+app.put("/presentes/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const {
+      nome,
+      descricao = "",
+      categoria = "",
+      valor,
+      imagem = "",
+      link = ""
+    } = req.body;
+
+    const valorNumerico = Number(valor);
+
+    if (
+      !Number.isInteger(id) ||
+      !nome ||
+      !Number.isFinite(valorNumerico) ||
+      valorNumerico <= 0
+    ) {
+      return res.status(400).json({
+        erro: "Dados do presente inválidos."
+      });
+    }
+
+    const resultado = await pool.query(
+      `
+        UPDATE presentes
+        SET
+          nome = $1,
+          descricao = $2,
+          categoria = $3,
+          valor = $4,
+          imagem = $5,
+          link = $6,
+          comprado =
+            CASE
+              WHEN arrecadado >= $4 THEN TRUE
+              ELSE FALSE
+            END
+        WHERE id = $7
+        RETURNING *
+      `,
+      [
+        String(nome).trim(),
+        String(descricao || "").trim(),
+        String(categoria || "").trim(),
+        valorNumerico,
+        String(imagem || "").trim(),
+        String(link || "").trim(),
+        id
+      ]
+    );
+
+    if (resultado.rowCount === 0) {
+      return res.status(404).json({
+        erro: "Presente não encontrado."
+      });
+    }
+
+    res.json(normalizarPresente(resultado.rows[0]));
+  } catch (erro) {
+    console.error("Erro ao atualizar presente:", erro);
+    res.status(500).json({
+      erro: "Não foi possível atualizar o presente."
+    });
+  }
+});
+
+app.delete("/presentes/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({
+        erro: "ID do presente inválido."
+      });
+    }
+
+    const resultado = await pool.query(
+      "DELETE FROM presentes WHERE id = $1 RETURNING id",
+      [id]
+    );
+
+    if (resultado.rowCount === 0) {
+      return res.status(404).json({
+        erro: "Presente não encontrado."
+      });
+    }
+
+    res.json({ ok: true, id });
+  } catch (erro) {
+    console.error("Erro ao excluir presente:", erro);
+    res.status(500).json({
+      erro: "Não foi possível excluir o presente."
+    });
+  }
+});
+
 app.get("/config/mercadopago", (req, res) => {
   const publicKey = process.env.MERCADO_PAGO_PUBLIC_KEY;
   if (!publicKey) return res.status(500).json({ erro: "MERCADO_PAGO_PUBLIC_KEY não configurada." });

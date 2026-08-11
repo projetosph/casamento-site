@@ -1,38 +1,65 @@
 // ==================================================
-// LISTA DE PRESENTES
+// LISTA DE PRESENTES - POSTGRESQL
 // ==================================================
+
+const API_PRESENTES = "https://casamento-backend-f7e4.onrender.com";
+let produtosPresentes = [];
 
 document.addEventListener("DOMContentLoaded", () => {
   carregarPresentes();
 });
 
-function carregarPresentes() {
+async function carregarPresentes() {
   const container = document.getElementById("listaPresentes");
-
   if (!container) return;
 
-  const produtos = getProdutos();
+  container.innerHTML = `
+    <p class="listaPresentesVazia">Carregando presentes...</p>
+  `;
 
-  if (produtos.length === 0) {
+  try {
+    const resposta = await fetch(`${API_PRESENTES}/presentes`);
+    const dados = await resposta.json();
+
+    if (!resposta.ok) {
+      throw new Error(dados.erro || "Não foi possível carregar os presentes.");
+    }
+
+    produtosPresentes = Array.isArray(dados) ? dados : [];
+
+    if (produtosPresentes.length === 0) {
+      container.innerHTML = `
+        <p class="listaPresentesVazia">
+          Nenhum presente foi cadastrado ainda.
+        </p>
+      `;
+      return;
+    }
+
+    container.innerHTML = produtosPresentes
+      .map((produto, index) => criarCardPresente(produto, index))
+      .join("");
+  } catch (erro) {
+    console.error("Erro ao carregar presentes:", erro);
+
     container.innerHTML = `
       <p class="listaPresentesVazia">
-        Nenhum presente foi cadastrado ainda.
+        Não foi possível carregar a lista de presentes agora.
       </p>
     `;
-    return;
   }
-
-  container.innerHTML = produtos
-    .map((produto, index) => criarCardPresente(produto, index))
-    .join("");
 }
 
 function criarCardPresente(produto, index) {
   const valor = Number(produto.valor ?? produto.valorTotal) || 0;
   const arrecadado = Number(produto.arrecadado) || 0;
   const restante = Math.max(valor - arrecadado, 0);
-  const quitado = Boolean(produto.comprado) || (valor > 0 && restante <= 0);
-  const imagem = converterUrlImagem(produto.imagem || produto.img || "");
+  const quitado =
+    Boolean(produto.comprado) || (valor > 0 && restante <= 0);
+
+  const imagem = converterUrlImagem(
+    produto.imagem || produto.img || ""
+  );
 
   const imagemHtml = imagem
     ? `
@@ -55,7 +82,8 @@ function criarCardPresente(produto, index) {
       }
     `;
   } else {
-    valorHtml = `<p class="valorAtual">${formatarMoeda(valor)}</p>`;
+    valorHtml =
+      `<p class="valorAtual">${formatarMoeda(valor)}</p>`;
   }
 
   const linkLoja = produto.link
@@ -96,8 +124,7 @@ function criarCardPresente(produto, index) {
 }
 
 function abrirCheckout(index) {
-  const produtos = getProdutos();
-  const produto = produtos[index];
+  const produto = produtosPresentes[index];
 
   if (!produto) {
     alert("Não foi possível localizar esse presente.");
@@ -116,11 +143,13 @@ function abrirCheckout(index) {
   const produtoCheckout = {
     ...produto,
     index,
-    id: produto.id ?? index,
+    id: produto.id,
     valor,
     arrecadado,
     restante,
-    imagem: converterUrlImagem(produto.imagem || produto.img || "")
+    imagem: converterUrlImagem(
+      produto.imagem || produto.img || ""
+    )
   };
 
   localStorage.setItem(
@@ -128,10 +157,36 @@ function abrirCheckout(index) {
     JSON.stringify(produtoCheckout)
   );
 
-  // Limpa escolhas antigas para não misturar compras.
   localStorage.removeItem("valorPagamento");
   localStorage.removeItem("tipoContribuicao");
   localStorage.removeItem("metodoPagamento");
 
   window.location.href = "pagamento.html";
+}
+
+function converterUrlImagem(url) {
+  if (!url) return "";
+
+  const drive = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+
+  if (drive?.[1]) {
+    return `https://drive.google.com/thumbnail?id=${drive[1]}&sz=w1200`;
+  }
+
+  const driveOpen = url.match(/[?&]id=([^&]+)/);
+
+  if (url.includes("drive.google.com") && driveOpen?.[1]) {
+    return `https://drive.google.com/thumbnail?id=${driveOpen[1]}&sz=w1200`;
+  }
+
+  return url;
+}
+
+function escaparHtml(valor) {
+  return String(valor ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
