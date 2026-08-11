@@ -62,6 +62,10 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
+function temNomeESobrenome(nome) {
+  return nome.trim().split(/\s+/).filter(Boolean).length >= 2;
+}
+
 async function confirmarPresenca(event) {
   event?.preventDefault();
 
@@ -83,7 +87,7 @@ async function confirmarPresenca(event) {
   const mensagem =
     mensagemInput?.value.trim() || "";
 
-  if (!titular) {
+  if (!titular || !temNomeESobrenome(titular)) {
     alert("Informe seu nome e sobrenome.");
     titularInput?.focus();
     return;
@@ -104,7 +108,7 @@ async function confirmarPresenca(event) {
   for (const input of camposConvidados) {
     const nome = input.value.trim();
 
-    if (!nome) {
+    if (!nome || !temNomeESobrenome(nome)) {
       alert(
         "Preencha o nome e sobrenome de todos os convidados."
       );

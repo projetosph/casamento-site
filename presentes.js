@@ -100,6 +100,7 @@ function criarCardPresente(produto, index) {
 
   return `
     <article class="cardPresente">
+      <div class="seloParcelamento">3X SEM JUROS</div>
       ${imagemHtml}
 
       <h3>${escaparHtml(produto.nome || "Presente")}</h3>
@@ -115,10 +116,20 @@ function criarCardPresente(produto, index) {
 
       <button
         type="button"
+        class="btnPresentear"
         onclick="abrirCheckout(${index})"
         ${quitado ? "disabled" : ""}>
         ${quitado ? "PRESENTEADO" : "PRESENTEAR"}
       </button>
+
+      ${quitado ? "" : `
+        <button
+          type="button"
+          class="btnCustearParte"
+          onclick="abrirCheckout(${index})">
+          CUSTEAR UMA PARTE
+        </button>
+      `}
     </article>
   `;
 }
