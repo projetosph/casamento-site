@@ -2,6 +2,8 @@
 // HOME
 // ==================================================
 
+const API_HOME = "https://casamento-backend-f7e4.onrender.com";
+
 document.addEventListener("DOMContentLoaded", () => {
   iniciarContador();
   prepararFormularioRecado();
@@ -62,9 +64,15 @@ function prepararFormularioRecado() {
   });
 }
 
-function enviarRecado() {
-  const campoNome = document.getElementById("nomeRecado");
-  const campoMensagem = document.getElementById("mensagemRecado");
+async function enviarRecado() {
+  const campoNome =
+    document.getElementById("nomeRecado");
+
+  const campoMensagem =
+    document.getElementById("mensagemRecado");
+
+  const botao =
+    document.getElementById("btnEnviarRecado");
 
   if (!campoNome || !campoMensagem) return;
 
@@ -76,20 +84,56 @@ function enviarRecado() {
     return;
   }
 
-  const recados = getRecados();
+  if (botao) {
+    botao.disabled = true;
+    botao.textContent = "ENVIANDO...";
+  }
 
-  recados.push({
-    id: Date.now(),
-    nome,
-    mensagem,
-    criadoEm: new Date().toISOString()
-  });
+  try {
+    const resposta = await fetch(
+      `${API_HOME}/recados`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          nome,
+          mensagem
+        })
+      }
+    );
 
-  saveRecados(recados);
+    const dados = await resposta.json();
 
-  campoNome.value = "";
-  campoMensagem.value = "";
-  campoNome.focus();
+    if (!resposta.ok) {
+      throw new Error(
+        dados.erro ||
+        "Não foi possível enviar a mensagem."
+      );
+    }
 
-  mostrarFeedback("Sua mensagem foi enviada!");
+    campoNome.value = "";
+    campoMensagem.value = "";
+    campoNome.focus();
+
+    if (typeof mostrarFeedback === "function") {
+      mostrarFeedback("Sua mensagem foi enviada!");
+    } else {
+      alert("Sua mensagem foi enviada!");
+    }
+
+    console.log(
+      "Recado salvo no PostgreSQL:",
+      dados
+    );
+  } catch (erro) {
+    console.error("Erro ao enviar recado:", erro);
+    alert(erro.message);
+  } finally {
+    if (botao) {
+      botao.disabled = false;
+      botao.textContent = "ENVIAR";
+    }
+  }
 }

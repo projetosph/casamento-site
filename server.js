@@ -16,6 +16,231 @@ app.get("/", (req, res) => {
 });
 
 
+
+// ==========================================================
+// PRESENÇAS - POSTGRESQL
+// ==========================================================
+
+function normalizarPresenca(row) {
+  return {
+    id: row.id,
+    nome: row.nome,
+    nomes: Array.isArray(row.nomes) ? row.nomes : [],
+    quantidade: Number(row.quantidade) || 1,
+    mensagem: row.mensagem || "",
+    criadoEm: row.criado_em
+  };
+}
+
+app.get("/presencas", async (req, res) => {
+  try {
+    const resultado = await pool.query(`
+      SELECT id, nome, nomes, quantidade, mensagem, criado_em
+      FROM presencas
+      ORDER BY id ASC
+    `);
+
+    res.json(resultado.rows.map(normalizarPresenca));
+  } catch (erro) {
+    console.error("Erro ao listar presenças:", erro);
+    res.status(500).json({
+      erro: "Não foi possível carregar as presenças."
+    });
+  }
+});
+
+app.post("/presencas", async (req, res) => {
+  try {
+    const {
+      nome,
+      nomes = [],
+      quantidade,
+      mensagem = ""
+    } = req.body;
+
+    const listaNomes =
+      Array.isArray(nomes)
+        ? nomes
+            .map(item => String(item || "").trim())
+            .filter(Boolean)
+        : [];
+
+    const titular =
+      String(nome || listaNomes[0] || "").trim();
+
+    const quantidadeNumerica =
+      Number(quantidade) || listaNomes.length || 1;
+
+    if (!titular) {
+      return res.status(400).json({
+        erro: "O nome do convidado é obrigatório."
+      });
+    }
+
+    if (
+      listaNomes.length > 0 &&
+      listaNomes.length !== quantidadeNumerica
+    ) {
+      return res.status(400).json({
+        erro: "A quantidade de nomes não corresponde à quantidade informada."
+      });
+    }
+
+    const nomesFinais =
+      listaNomes.length > 0
+        ? listaNomes
+        : [titular];
+
+    const resultado = await pool.query(
+      `
+        INSERT INTO presencas
+          (nome, nomes, quantidade, mensagem)
+        VALUES
+          ($1, $2::jsonb, $3, $4)
+        RETURNING *
+      `,
+      [
+        titular,
+        JSON.stringify(nomesFinais),
+        quantidadeNumerica,
+        String(mensagem || "").trim()
+      ]
+    );
+
+    res.status(201).json(
+      normalizarPresenca(resultado.rows[0])
+    );
+  } catch (erro) {
+    console.error("Erro ao cadastrar presença:", erro);
+    res.status(500).json({
+      erro: "Não foi possível confirmar a presença."
+    });
+  }
+});
+
+app.delete("/presencas/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({
+        erro: "ID da presença inválido."
+      });
+    }
+
+    const resultado = await pool.query(
+      "DELETE FROM presencas WHERE id = $1 RETURNING id",
+      [id]
+    );
+
+    if (resultado.rowCount === 0) {
+      return res.status(404).json({
+        erro: "Confirmação não encontrada."
+      });
+    }
+
+    res.json({ ok: true, id });
+  } catch (erro) {
+    console.error("Erro ao excluir presença:", erro);
+    res.status(500).json({
+      erro: "Não foi possível excluir a presença."
+    });
+  }
+});
+
+// ==========================================================
+// RECADOS - POSTGRESQL
+// ==========================================================
+
+function normalizarRecado(row) {
+  return {
+    id: row.id,
+    nome: row.nome,
+    mensagem: row.mensagem,
+    criadoEm: row.criado_em
+  };
+}
+
+app.get("/recados", async (req, res) => {
+  try {
+    const resultado = await pool.query(`
+      SELECT id, nome, mensagem, criado_em
+      FROM recados
+      ORDER BY id ASC
+    `);
+
+    res.json(resultado.rows.map(normalizarRecado));
+  } catch (erro) {
+    console.error("Erro ao listar recados:", erro);
+    res.status(500).json({
+      erro: "Não foi possível carregar os recados."
+    });
+  }
+});
+
+app.post("/recados", async (req, res) => {
+  try {
+    const nome = String(req.body?.nome || "").trim();
+    const mensagem = String(req.body?.mensagem || "").trim();
+
+    if (!nome || !mensagem) {
+      return res.status(400).json({
+        erro: "Nome e mensagem são obrigatórios."
+      });
+    }
+
+    const resultado = await pool.query(
+      `
+        INSERT INTO recados
+          (nome, mensagem)
+        VALUES
+          ($1, $2)
+        RETURNING *
+      `,
+      [nome, mensagem]
+    );
+
+    res.status(201).json(
+      normalizarRecado(resultado.rows[0])
+    );
+  } catch (erro) {
+    console.error("Erro ao cadastrar recado:", erro);
+    res.status(500).json({
+      erro: "Não foi possível enviar o recado."
+    });
+  }
+});
+
+app.delete("/recados/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({
+        erro: "ID do recado inválido."
+      });
+    }
+
+    const resultado = await pool.query(
+      "DELETE FROM recados WHERE id = $1 RETURNING id",
+      [id]
+    );
+
+    if (resultado.rowCount === 0) {
+      return res.status(404).json({
+        erro: "Recado não encontrado."
+      });
+    }
+
+    res.json({ ok: true, id });
+  } catch (erro) {
+    console.error("Erro ao excluir recado:", erro);
+    res.status(500).json({
+      erro: "Não foi possível excluir o recado."
+    });
+  }
+});
+
 // ==========================================================
 // PRESENTES - POSTGRESQL
 // ==========================================================

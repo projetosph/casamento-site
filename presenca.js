@@ -1,14 +1,16 @@
 // ==========================================================
-// LISTA DE PRESENÇA
-// Gera os campos dos acompanhantes e envia todos os nomes.
+// LISTA DE PRESENÇA - POSTGRESQL
 // ==========================================================
+
+const API_PRESENCA = "https://casamento-backend-f7e4.onrender.com";
 
 function criarCamposConvidados() {
   const quantidade = Number(
     document.getElementById("quantidadePresenca")?.value
   );
 
-  const container = document.getElementById("listaNomesConvidados");
+  const container =
+    document.getElementById("listaNomesConvidados");
 
   if (!container) return;
 
@@ -33,35 +35,53 @@ function criarCamposConvidados() {
   }
 }
 
-
-// Atualiza automaticamente os campos quando a quantidade mudar
 document.addEventListener("DOMContentLoaded", () => {
-  const quantidadeInput = document.getElementById("quantidadePresenca");
-  const botao = document.getElementById("btnConfirmarPresenca");
+  const quantidadeInput =
+    document.getElementById("quantidadePresenca");
+
+  const botao =
+    document.getElementById("btnConfirmarPresenca");
 
   if (quantidadeInput) {
-    quantidadeInput.addEventListener("input", criarCamposConvidados);
-    quantidadeInput.addEventListener("change", criarCamposConvidados);
+    quantidadeInput.addEventListener(
+      "input",
+      criarCamposConvidados
+    );
+
+    quantidadeInput.addEventListener(
+      "change",
+      criarCamposConvidados
+    );
   }
 
   if (botao) {
-    botao.addEventListener("click", confirmarPresenca);
+    botao.addEventListener(
+      "click",
+      confirmarPresenca
+    );
   }
 });
 
-
 async function confirmarPresenca(event) {
-  if (event) {
-    event.preventDefault();
-  }
+  event?.preventDefault();
 
-  const titularInput = document.getElementById("nomePresenca");
-  const quantidadeInput = document.getElementById("quantidadePresenca");
-  const mensagemInput = document.getElementById("mensagemPresenca");
+  const titularInput =
+    document.getElementById("nomePresenca");
 
-  const titular = titularInput?.value.trim() || "";
-  const quantidadeInformada = Number(quantidadeInput?.value) || 0;
-  const mensagem = mensagemInput?.value.trim() || "";
+  const quantidadeInput =
+    document.getElementById("quantidadePresenca");
+
+  const mensagemInput =
+    document.getElementById("mensagemPresenca");
+
+  const titular =
+    titularInput?.value.trim() || "";
+
+  const quantidadeInformada =
+    Number(quantidadeInput?.value) || 0;
+
+  const mensagem =
+    mensagemInput?.value.trim() || "";
 
   if (!titular) {
     alert("Informe seu nome e sobrenome.");
@@ -85,7 +105,9 @@ async function confirmarPresenca(event) {
     const nome = input.value.trim();
 
     if (!nome) {
-      alert("Preencha o nome e sobrenome de todos os convidados.");
+      alert(
+        "Preencha o nome e sobrenome de todos os convidados."
+      );
       input.focus();
       return;
     }
@@ -100,56 +122,74 @@ async function confirmarPresenca(event) {
     return;
   }
 
-  const presenca = {
-    nome: titular,
-    nomes: nomes,
-    quantidade: nomes.length,
-    mensagem: mensagem,
-    dataConfirmacao: new Date().toISOString()
-  };
+  const botao =
+    document.getElementById("btnConfirmarPresenca");
 
-  /*
-    Mantém compatibilidade com o formato atual do site:
-    salva a confirmação no localStorage.
-
-    Se o seu projeto já usa a chave "presencas", ela será preservada.
-  */
-  let presencas = [];
+  if (botao) {
+    botao.disabled = true;
+    botao.textContent = "ENVIANDO...";
+  }
 
   try {
-    presencas = JSON.parse(localStorage.getItem("presencas")) || [];
+    const resposta = await fetch(
+      `${API_PRESENCA}/presencas`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          nome: titular,
+          nomes,
+          quantidade: nomes.length,
+          mensagem
+        })
+      }
+    );
+
+    const dados = await resposta.json();
+
+    if (!resposta.ok) {
+      throw new Error(
+        dados.erro ||
+        "Não foi possível confirmar a presença."
+      );
+    }
+
+    if (titularInput) titularInput.value = "";
+    if (quantidadeInput) quantidadeInput.value = "";
+    if (mensagemInput) mensagemInput.value = "";
+
+    const container =
+      document.getElementById("listaNomesConvidados");
+
+    if (container) {
+      container.innerHTML = "";
+    }
+
+    if (typeof mostrarFeedback === "function") {
+      mostrarFeedback(
+        "Presença confirmada com sucesso!"
+      );
+    } else {
+      alert("Presença confirmada com sucesso!");
+    }
+
+    console.log(
+      "Presença salva no PostgreSQL:",
+      dados
+    );
   } catch (erro) {
-    console.error("Erro ao carregar lista de presenças:", erro);
+    console.error(
+      "Erro ao confirmar presença:",
+      erro
+    );
+
+    alert(erro.message);
+  } finally {
+    if (botao) {
+      botao.disabled = false;
+      botao.textContent = "CONFIRMAR PRESENÇA";
+    }
   }
-
-  presencas.push(presenca);
-
-  localStorage.setItem(
-    "presencas",
-    JSON.stringify(presencas)
-  );
-
-  // Limpa o formulário
-  if (titularInput) titularInput.value = "";
-  if (quantidadeInput) quantidadeInput.value = "";
-  if (mensagemInput) mensagemInput.value = "";
-
-  const container = document.getElementById("listaNomesConvidados");
-  if (container) {
-    container.innerHTML = "";
-  }
-
-  // Feedback
-  if (typeof mostrarFeedback === "function") {
-    mostrarFeedback("Presença confirmada com sucesso!");
-  } else {
-    alert("Presença confirmada com sucesso!");
-  }
-
-  // Atualiza a lista visível, caso exista uma função do projeto para isso
-  if (typeof carregarPresencas === "function") {
-    carregarPresencas();
-  }
-
-  console.log("Presença confirmada:", presenca);
 }

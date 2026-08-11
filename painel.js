@@ -7,11 +7,18 @@ let produtosAdmin = [];
 
 document.addEventListener("DOMContentLoaded", async () => {
   await migrarProdutosLocaisParaBanco();
-  await carregarProdutosAdmin();
+  await migrarPresencasLocaisParaBanco();
+  await migrarRecadosLocaisParaBanco();
 
-  carregarPresencasAdmin();
-  carregarRecadosAdmin();
+  await carregarProdutosAdmin();
+  await carregarPresencasAdmin();
+  await carregarRecadosAdmin();
+
   previewImagemProduto();
+
+  if (typeof atualizarDashboard === "function") {
+    atualizarDashboard();
+  }
 });
 
 // ==================================================
@@ -435,163 +442,411 @@ async function migrarProdutosLocaisParaBanco() {
 }
 
 // ==================================================
-// PRESENÇAS
+// PRESENÇAS - POSTGRESQL
 // ==================================================
 
-function carregarPresencasAdmin() {
-  const lista = JSON.parse(localStorage.getItem("presencas")) || [];
-  const container = document.getElementById("presencas");
+let presencasAdmin = [];
+
+async function carregarPresencasAdmin() {
+  const container =
+    document.getElementById("presencas");
 
   if (!container) return;
 
-  const total = lista.reduce(
-    (soma, pessoa) => soma + (Number(pessoa.quantidade) || 0),
-    0
-  );
-
   container.innerHTML = `
-    <h3 class="tituloListaAdmin">
-      Lista de Presença (${total} confirmados)
-    </h3>
+    <h3 class="tituloListaAdmin">Lista de Presença</h3>
+    <p class="listaVazia">Carregando...</p>
+  `;
 
-    ${
-      lista.length === 0
-        ? `<p class="listaVazia">Nenhuma presença confirmada.</p>`
-        : lista.map((pessoa, index) => {
+  try {
+    const resposta =
+      await fetch(`${API_PAINEL}/presencas`);
 
-            const nomes =
-              Array.isArray(pessoa.nomes) && pessoa.nomes.length
-                ? pessoa.nomes
-                : [pessoa.nome || "Convidado"];
+    const dados = await resposta.json();
 
-            const titular = nomes[0] || pessoa.nome || "Convidado";
-            const acompanhantes = nomes.slice(1);
+    if (!resposta.ok) {
+      throw new Error(
+        dados.erro ||
+        "Não foi possível carregar as presenças."
+      );
+    }
 
-            return `
-              <div class="itemAdminLinha grupoPresenca">
+    presencasAdmin =
+      Array.isArray(dados) ? dados : [];
 
-                <div class="grupoPresencaInfo">
+    const total = presencasAdmin.reduce(
+      (soma, pessoa) =>
+        soma + (Number(pessoa.quantidade) || 0),
+      0
+    );
 
-                  <div class="grupoPresencaTitular">
-                    <strong>${escaparHtml(titular)}</strong>
-                    <span>
-                      ${Number(pessoa.quantidade) || nomes.length} pessoa(s)
-                    </span>
+    container.innerHTML = `
+      <h3 class="tituloListaAdmin">
+        Lista de Presença (${total} confirmados)
+      </h3>
+
+      ${
+        presencasAdmin.length === 0
+          ? `<p class="listaVazia">Nenhuma presença confirmada.</p>`
+          : presencasAdmin.map((pessoa, index) => {
+              const nomes =
+                Array.isArray(pessoa.nomes) &&
+                pessoa.nomes.length
+                  ? pessoa.nomes
+                  : [pessoa.nome || "Convidado"];
+
+              const titular =
+                nomes[0] ||
+                pessoa.nome ||
+                "Convidado";
+
+              const acompanhantes =
+                nomes.slice(1);
+
+              return `
+                <div class="itemAdminLinha grupoPresenca">
+
+                  <div class="grupoPresencaInfo">
+
+                    <div class="grupoPresencaTitular">
+                      <strong>
+                        ${escaparHtml(titular)}
+                      </strong>
+
+                      <span>
+                        ${Number(pessoa.quantidade) || nomes.length} pessoa(s)
+                      </span>
+                    </div>
+
+                    ${
+                      acompanhantes.length > 0
+                        ? `
+                          <div class="grupoPresencaAcompanhantes">
+                            <small>
+                              Convidados junto com ${escaparHtml(titular)}:
+                            </small>
+
+                            <ul>
+                              ${acompanhantes
+                                .map(nome => `
+                                  <li>
+                                    ${escaparHtml(nome)}
+                                  </li>
+                                `)
+                                .join("")}
+                            </ul>
+                          </div>
+                        `
+                        : `
+                          <div class="grupoPresencaAcompanhantes">
+                            <small>Sem acompanhantes.</small>
+                          </div>
+                        `
+                    }
+
+                    ${
+                      pessoa.mensagem
+                        ? `
+                          <p class="grupoPresencaMensagem">
+                            ${escaparHtml(pessoa.mensagem)}
+                          </p>
+                        `
+                        : ""
+                    }
+
                   </div>
 
-                  ${
-                    acompanhantes.length > 0
-                      ? `
-                        <div class="grupoPresencaAcompanhantes">
-
-                          <small>Convidados junto com ${escaparHtml(titular)}:</small>
-
-                          <ul>
-                            ${acompanhantes
-                              .map(nome => `
-                                <li>${escaparHtml(nome)}</li>
-                              `)
-                              .join("")}
-                          </ul>
-
-                        </div>
-                      `
-                      : `
-                        <div class="grupoPresencaAcompanhantes">
-                          <small>Sem acompanhantes.</small>
-                        </div>
-                      `
-                  }
-
-                  ${
-                    pessoa.mensagem
-                      ? `
-                        <p class="grupoPresencaMensagem">
-                          ${escaparHtml(pessoa.mensagem)}
-                        </p>
-                      `
-                      : ""
-                  }
+                  <button
+                    type="button"
+                    onclick="excluirPresenca(${index})">
+                    Excluir
+                  </button>
 
                 </div>
+              `;
+            }).join("")
+      }
+    `;
+  } catch (erro) {
+    console.error(
+      "Erro ao carregar presenças:",
+      erro
+    );
 
-                <button
-                  type="button"
-                  onclick="excluirPresenca(${index})">
-                  Excluir
-                </button>
-
-              </div>
-            `;
-          }).join("")
-    }
-  `;
+    container.innerHTML = `
+      <h3 class="tituloListaAdmin">Lista de Presença</h3>
+      <p class="listaVazia">
+        Não foi possível carregar as presenças.
+      </p>
+    `;
+  }
 }
 
-function excluirPresenca(index) {
-  const lista = JSON.parse(localStorage.getItem("presencas")) || [];
+async function excluirPresenca(index) {
+  const pessoa = presencasAdmin[index];
 
-  if (!lista[index]) return;
+  if (!pessoa) return;
   if (!confirm("Deseja excluir esta confirmação?")) return;
 
-  lista.splice(index, 1);
-  localStorage.setItem("presencas", JSON.stringify(lista));
+  try {
+    const resposta = await fetch(
+      `${API_PAINEL}/presencas/${pessoa.id}`,
+      { method: "DELETE" }
+    );
 
-  carregarPresencasAdmin();
+    const dados = await resposta.json();
 
-  if (typeof atualizarDashboard === "function") {
-    atualizarDashboard();
+    if (!resposta.ok) {
+      throw new Error(
+        dados.erro ||
+        "Não foi possível excluir a presença."
+      );
+    }
+
+    await carregarPresencasAdmin();
+
+    if (typeof atualizarDashboard === "function") {
+      atualizarDashboard();
+    }
+  } catch (erro) {
+    console.error("Erro ao excluir presença:", erro);
+    alert(erro.message);
+  }
+}
+
+async function migrarPresencasLocaisParaBanco() {
+  try {
+    const resposta =
+      await fetch(`${API_PAINEL}/presencas`);
+
+    const banco = await resposta.json();
+
+    if (!resposta.ok || !Array.isArray(banco)) return;
+    if (banco.length > 0) return;
+
+    const locais =
+      JSON.parse(
+        localStorage.getItem("presencas")
+      ) || [];
+
+    if (!Array.isArray(locais) || locais.length === 0) {
+      return;
+    }
+
+    console.log(
+      `Migrando ${locais.length} confirmação(ões) para o PostgreSQL...`
+    );
+
+    for (const pessoa of locais) {
+      const nomes =
+        Array.isArray(pessoa.nomes) &&
+        pessoa.nomes.length
+          ? pessoa.nomes
+          : [pessoa.nome].filter(Boolean);
+
+      if (nomes.length === 0) continue;
+
+      await fetch(
+        `${API_PAINEL}/presencas`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            nome:
+              pessoa.nome ||
+              nomes[0],
+            nomes,
+            quantidade:
+              Number(pessoa.quantidade) ||
+              nomes.length,
+            mensagem:
+              pessoa.mensagem || ""
+          })
+        }
+      );
+    }
+
+    console.log(
+      "Migração de presenças concluída."
+    );
+  } catch (erro) {
+    console.error(
+      "Não foi possível migrar as presenças antigas:",
+      erro
+    );
   }
 }
 
 // ==================================================
-// RECADOS
+// RECADOS - POSTGRESQL
 // ==================================================
 
-function carregarRecadosAdmin() {
-  const lista = JSON.parse(localStorage.getItem("recados")) || [];
-  const container = document.getElementById("recados");
+let recadosAdmin = [];
+
+async function carregarRecadosAdmin() {
+  const container =
+    document.getElementById("recados");
 
   if (!container) return;
 
-  const invertida = lista.slice().reverse();
-
   container.innerHTML = `
-    <h3 class="tituloListaAdmin">Recados (${lista.length})</h3>
-    ${
-      invertida.length === 0
-        ? `<p class="listaVazia">Nenhum recado recebido.</p>`
-        : invertida.map((recado, indexInvertido) => `
-            <div class="recadoAdmin">
-              <div>
-                <strong>${escaparHtml(recado.nome || "Convidado")}</strong>
-                <p>${escaparHtml(recado.mensagem || recado.msg || "")}</p>
-              </div>
-
-              <button type="button"
-                      onclick="excluirRecadoAdmin(${indexInvertido})">
-                Excluir
-              </button>
-            </div>
-          `).join("")
-    }
+    <h3 class="tituloListaAdmin">Recados</h3>
+    <p class="listaVazia">Carregando...</p>
   `;
+
+  try {
+    const resposta =
+      await fetch(`${API_PAINEL}/recados`);
+
+    const dados = await resposta.json();
+
+    if (!resposta.ok) {
+      throw new Error(
+        dados.erro ||
+        "Não foi possível carregar os recados."
+      );
+    }
+
+    recadosAdmin =
+      Array.isArray(dados) ? dados : [];
+
+    const invertida =
+      recadosAdmin.slice().reverse();
+
+    container.innerHTML = `
+      <h3 class="tituloListaAdmin">
+        Recados (${recadosAdmin.length})
+      </h3>
+
+      ${
+        invertida.length === 0
+          ? `<p class="listaVazia">Nenhum recado recebido.</p>`
+          : invertida.map(recado => `
+              <div class="recadoAdmin">
+                <div>
+                  <strong>
+                    ${escaparHtml(recado.nome || "Convidado")}
+                  </strong>
+
+                  <p>
+                    ${escaparHtml(recado.mensagem || "")}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onclick="excluirRecadoAdmin(${recado.id})">
+                  Excluir
+                </button>
+              </div>
+            `).join("")
+      }
+    `;
+  } catch (erro) {
+    console.error(
+      "Erro ao carregar recados:",
+      erro
+    );
+
+    container.innerHTML = `
+      <h3 class="tituloListaAdmin">Recados</h3>
+      <p class="listaVazia">
+        Não foi possível carregar os recados.
+      </p>
+    `;
+  }
 }
 
-function excluirRecadoAdmin(indexInvertido) {
-  const lista = JSON.parse(localStorage.getItem("recados")) || [];
-  const indexOriginal = lista.length - 1 - indexInvertido;
-
-  if (!lista[indexOriginal]) return;
+async function excluirRecadoAdmin(id) {
   if (!confirm("Deseja excluir este recado?")) return;
 
-  lista.splice(indexOriginal, 1);
-  localStorage.setItem("recados", JSON.stringify(lista));
+  try {
+    const resposta = await fetch(
+      `${API_PAINEL}/recados/${id}`,
+      { method: "DELETE" }
+    );
 
-  carregarRecadosAdmin();
+    const dados = await resposta.json();
 
-  if (typeof atualizarDashboard === "function") {
-    atualizarDashboard();
+    if (!resposta.ok) {
+      throw new Error(
+        dados.erro ||
+        "Não foi possível excluir o recado."
+      );
+    }
+
+    await carregarRecadosAdmin();
+
+    if (typeof atualizarDashboard === "function") {
+      atualizarDashboard();
+    }
+  } catch (erro) {
+    console.error("Erro ao excluir recado:", erro);
+    alert(erro.message);
+  }
+}
+
+async function migrarRecadosLocaisParaBanco() {
+  try {
+    const resposta =
+      await fetch(`${API_PAINEL}/recados`);
+
+    const banco = await resposta.json();
+
+    if (!resposta.ok || !Array.isArray(banco)) return;
+    if (banco.length > 0) return;
+
+    const locais =
+      JSON.parse(
+        localStorage.getItem("recados")
+      ) || [];
+
+    if (!Array.isArray(locais) || locais.length === 0) {
+      return;
+    }
+
+    console.log(
+      `Migrando ${locais.length} recado(s) para o PostgreSQL...`
+    );
+
+    for (const recado of locais) {
+      const nome =
+        String(recado.nome || "").trim();
+
+      const mensagem =
+        String(
+          recado.mensagem ||
+          recado.msg ||
+          ""
+        ).trim();
+
+      if (!nome || !mensagem) continue;
+
+      await fetch(
+        `${API_PAINEL}/recados`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            nome,
+            mensagem
+          })
+        }
+      );
+    }
+
+    console.log(
+      "Migração de recados concluída."
+    );
+  } catch (erro) {
+    console.error(
+      "Não foi possível migrar os recados antigos:",
+      erro
+    );
   }
 }
 
