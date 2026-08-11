@@ -2301,12 +2301,12 @@ h1, h2, h3 {
 .cardPresente { position:relative; }
 .seloParcelamento {
   position:absolute; top:18px; left:18px; z-index:5;
-  min-width:96px; padding:4px 5px;
+  min-width:50px; padding:15px 8px;
   background:rgba(132,157,150,.68); color:var(--verde);
-  font-family:'Montserrat',sans-serif; font-size:8px; font-weight:1000;
+  font-family:'Montserrat',sans-serif; font-size:9px; font-weight:700 ;
   line-height:1.25; letter-spacing:.5px; text-align:center;
-  border-radius: 0%;
-  margin-left: 10px;
+  border-radius: 50%;
+  margin-left:0;
 }
 .cardPresente .btnPresentear,
 .cardPresente .btnCustearParte {

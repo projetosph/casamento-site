@@ -100,7 +100,7 @@ function criarCardPresente(produto, index) {
 
   return `
     <article class="cardPresente">
-      <div class="seloParcelamento">3X SEM JUROS</div>
+      <div class="seloParcelamento">3X SEM<br>JUROS</div>
       ${imagemHtml}
 
       <h3>${escaparHtml(produto.nome || "Presente")}</h3>
