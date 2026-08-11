@@ -42,8 +42,15 @@ function atualizarDashboard(){
     document.getElementById("dashRecados").innerHTML =
         recados.length;
 
+    const totalConfirmados =
+        presencas.reduce(
+            (soma, pessoa) =>
+                soma + (Number(pessoa.quantidade) || 0),
+            0
+        );
+
     document.getElementById("dashPresencas").innerHTML =
-        presencas.length;
+        totalConfirmados;
 
     document.getElementById("dashArrecadado").innerHTML =
         formatarMoeda(arrecadado);

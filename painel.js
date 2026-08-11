@@ -309,22 +309,80 @@ function carregarPresencasAdmin() {
   );
 
   container.innerHTML = `
-    <h3 class="tituloListaAdmin">Lista de Presença (${total} confirmados)</h3>
+    <h3 class="tituloListaAdmin">
+      Lista de Presença (${total} confirmados)
+    </h3>
+
     ${
       lista.length === 0
         ? `<p class="listaVazia">Nenhuma presença confirmada.</p>`
-        : lista.map((pessoa, index) => `
-            <div class="itemAdminLinha">
-              <span>
-                <strong>${escaparHtml(pessoa.nome || "Convidado")}</strong>
-                — ${Number(pessoa.quantidade) || 0} pessoa(s)
-              </span>
+        : lista.map((pessoa, index) => {
 
-              <button type="button" onclick="excluirPresenca(${index})">
-                Excluir
-              </button>
-            </div>
-          `).join("")
+            const nomes =
+              Array.isArray(pessoa.nomes) && pessoa.nomes.length
+                ? pessoa.nomes
+                : [pessoa.nome || "Convidado"];
+
+            const titular = nomes[0] || pessoa.nome || "Convidado";
+            const acompanhantes = nomes.slice(1);
+
+            return `
+              <div class="itemAdminLinha grupoPresenca">
+
+                <div class="grupoPresencaInfo">
+
+                  <div class="grupoPresencaTitular">
+                    <strong>${escaparHtml(titular)}</strong>
+                    <span>
+                      ${Number(pessoa.quantidade) || nomes.length} pessoa(s)
+                    </span>
+                  </div>
+
+                  ${
+                    acompanhantes.length > 0
+                      ? `
+                        <div class="grupoPresencaAcompanhantes">
+
+                          <small>Convidados junto com ${escaparHtml(titular)}:</small>
+
+                          <ul>
+                            ${acompanhantes
+                              .map(nome => `
+                                <li>${escaparHtml(nome)}</li>
+                              `)
+                              .join("")}
+                          </ul>
+
+                        </div>
+                      `
+                      : `
+                        <div class="grupoPresencaAcompanhantes">
+                          <small>Sem acompanhantes.</small>
+                        </div>
+                      `
+                  }
+
+                  ${
+                    pessoa.mensagem
+                      ? `
+                        <p class="grupoPresencaMensagem">
+                          ${escaparHtml(pessoa.mensagem)}
+                        </p>
+                      `
+                      : ""
+                  }
+
+                </div>
+
+                <button
+                  type="button"
+                  onclick="excluirPresenca(${index})">
+                  Excluir
+                </button>
+
+              </div>
+            `;
+          }).join("")
     }
   `;
 }

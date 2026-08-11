@@ -21,9 +21,21 @@
 
   <p class="subtitulo">CONFIRMAÇÃO DE PRESENÇA</p>
 
-  <input type="text" id="nome" placeholder="Seu nome completo" class="inputNome">
+  <input
+  id="nomePresenca"
+  class="inputNome"
+  placeholder="Seu nome e sobrenome">
 
-  <input type="number" id="quantidade" placeholder="Quantidade de pessoas" class="inputNome">
+  <input
+    id="quantidadePresenca"
+    type="number"
+    min="1"
+    max="10"
+    class="inputNome"
+    placeholder="Quantidade de pessoas"
+    oninput="criarCamposConvidados()">
+
+  <div id="listaNomesConvidados"></div>
 
   <textarea id="mensagem" placeholder="Deixe uma mensagem (opcional)"></textarea>
 

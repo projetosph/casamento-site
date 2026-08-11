@@ -23,52 +23,164 @@ resumo();
 
 // ============ PRESENÇA =============
 function confirmarPresenca() {
-  const nome = document.getElementById("nome").value
-  const quantidade = document.getElementById("quantidade").value
-  const mensagem = document.getElementById("mensagem").value
+  const nomeInput =
+    document.getElementById("nomePresenca") ||
+    document.getElementById("nome");
 
-  if (!nome || !quantidade) {
-    alert("Preencha nome e quantidade")
-    return
+  const quantidadeInput =
+    document.getElementById("quantidadePresenca") ||
+    document.getElementById("quantidade");
+
+  const mensagemInput =
+    document.getElementById("mensagemPresenca") ||
+    document.getElementById("mensagem");
+
+  const titular = nomeInput?.value.trim() || "";
+  const quantidade = Number(quantidadeInput?.value) || 0;
+  const mensagem = mensagemInput?.value.trim() || "";
+
+  if (!titular || quantidade < 1) {
+    alert("Preencha nome e quantidade");
+    return;
   }
 
-  const lista = JSON.parse(localStorage.getItem("presencas")) || []
+  const nomes = [titular];
+
+  const acompanhantes =
+    document.querySelectorAll(".nomeConvidado");
+
+  for (const input of acompanhantes) {
+    const nome = input.value.trim();
+
+    if (!nome) {
+      alert("Preencha o nome e sobrenome de todos os convidados.");
+      input.focus();
+      return;
+    }
+
+    nomes.push(nome);
+  }
+
+  if (nomes.length !== quantidade) {
+    alert(
+      "A quantidade de nomes preenchidos deve ser igual à quantidade de pessoas."
+    );
+    return;
+  }
+
+  const lista =
+    JSON.parse(localStorage.getItem("presencas")) || [];
 
   lista.push({
-    nome,
-    quantidade,
-    mensagem
-  })
+    nome: titular,
+    nomes,
+    quantidade: nomes.length,
+    mensagem,
+    dataConfirmacao: new Date().toISOString()
+  });
 
-  localStorage.setItem("presencas", JSON.stringify(lista))
+  localStorage.setItem(
+    "presencas",
+    JSON.stringify(lista)
+  );
 
-  alert("Presença confirmada!")
+  alert("Presença confirmada!");
 
-  document.getElementById("nome").value = ""
-  document.getElementById("quantidade").value = ""
-  document.getElementById("mensagem").value = ""
+  if (nomeInput) nomeInput.value = "";
+  if (quantidadeInput) quantidadeInput.value = "";
+  if (mensagemInput) mensagemInput.value = "";
 
-  carregarPresencas()
+  const container =
+    document.getElementById("listaNomesConvidados");
+
+  if (container) {
+    container.innerHTML = "";
+  }
+
+  carregarPresencas();
+  carregarPresencasAdmin();
 }
 
 function carregarPresencas() {
-  const lista = JSON.parse(localStorage.getItem("presencas")) || []
-  const container = document.getElementById("listaPresenca")
+  const lista =
+    JSON.parse(localStorage.getItem("presencas")) || [];
 
-  if (!container) return
+  const container =
+    document.getElementById("listaPresenca");
 
-  container.innerHTML = "<h3 style='margin-top:30px'>Confirmados</h3>"
+  if (!container) return;
+
+  container.innerHTML =
+    "<h3 style='margin-top:30px'>Confirmados</h3>";
 
   lista.forEach(p => {
+    const nomes =
+      Array.isArray(p.nomes) && p.nomes.length
+        ? p.nomes
+        : [p.nome];
+
     container.innerHTML += `
       <div style="margin-top:10px; font-size:13px;">
-        <strong>${p.nome}</strong> - ${p.quantidade} pessoa(s)
+        <strong>${nomes.join(", ")}</strong>
+        - ${Number(p.quantidade) || nomes.length} pessoa(s)
       </div>
-    `
-  })
+    `;
+  });
 }
 
 carregarPresencas()
+
+
+function criarCamposConvidados() {
+  const quantidadeInput =
+    document.getElementById("quantidadePresenca") ||
+    document.getElementById("quantidade");
+
+  const container =
+    document.getElementById("listaNomesConvidados");
+
+  if (!quantidadeInput || !container) return;
+
+  const quantidade =
+    Number(quantidadeInput.value) || 0;
+
+  container.innerHTML = "";
+
+  if (quantidade <= 1) return;
+
+  for (let i = 2; i <= quantidade; i++) {
+    container.insertAdjacentHTML(
+      "beforeend",
+      `
+        <input
+          type="text"
+          class="inputNome nomeConvidado"
+          placeholder="Nome e sobrenome do convidado ${i}"
+          required
+        >
+      `
+    );
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const quantidadeInput =
+    document.getElementById("quantidadePresenca") ||
+    document.getElementById("quantidade");
+
+  if (quantidadeInput) {
+    quantidadeInput.addEventListener(
+      "input",
+      criarCamposConvidados
+    );
+
+    quantidadeInput.addEventListener(
+      "change",
+      criarCamposConvidados
+    );
+  }
+});
+
 
 // ================= EDITAR =================
 function editarProduto(index){
@@ -226,31 +338,85 @@ carregarProdutosAdmin()
 
 // ================= PRESENÇAS =================
 function carregarPresencasAdmin(){
-  const lista = JSON.parse(localStorage.getItem("presencas")) || []
-  const div = document.getElementById("presencas")
+  const lista =
+    JSON.parse(localStorage.getItem("presencas")) || [];
 
-  if(!div) return
+  const div =
+    document.getElementById("presencas");
 
-  // soma total de pessoas
-  let total = 0
+  if(!div) return;
+
+  let total = 0;
+
   lista.forEach(p => {
-    total += Number(p.quantidade)
-  })
+    const nomes =
+      Array.isArray(p.nomes) && p.nomes.length
+        ? p.nomes
+        : [p.nome];
+
+    total += Number(p.quantidade) || nomes.length;
+  });
 
   div.innerHTML = `
     <h3 style="margin-bottom:15px;">
       Lista de Presença (${total} confirmados)
     </h3>
-  `
+  `;
 
-  lista.forEach((p, index)=>{
+  lista.forEach((p, index) => {
+    const nomes =
+      Array.isArray(p.nomes) && p.nomes.length
+        ? p.nomes
+        : [p.nome];
+
     div.innerHTML += `
-      <div style="margin-top:10px; display:flex; justify-content:space-between;">
-        <span>${p.nome} - ${p.quantidade} pessoa(s)</span>
-        <button onclick="excluirPresenca(${index})">🗑️</button>
+      <div style="
+        margin-top:12px;
+        display:flex;
+        justify-content:space-between;
+        gap:15px;
+        align-items:flex-start;
+        padding-bottom:10px;
+        border-bottom:1px solid #ecefed;
+      ">
+
+        <div style="text-align:left; flex:1;">
+
+          <strong>
+            ${nomes[0] || "Sem nome"}
+          </strong>
+
+          <div style="
+            margin-top:6px;
+            font-size:13px;
+            line-height:1.6;
+          ">
+            ${nomes
+              .map((nome, i) =>
+                `<div>${i + 1}. ${nome}</div>`
+              )
+              .join("")}
+          </div>
+
+          <small>
+            ${Number(p.quantidade) || nomes.length} pessoa(s)
+          </small>
+
+          ${
+            p.mensagem
+              ? `<p style="margin-top:6px;">${p.mensagem}</p>`
+              : ""
+          }
+
+        </div>
+
+        <button onclick="excluirPresenca(${index})">
+          🗑️
+        </button>
+
       </div>
-    `
-  })
+    `;
+  });
 }
 
 function excluirPresenca(index){

@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const { criarPix, criarPagamentoCartao, consultarPagamento } = require("./services/mercadoPago");
 const { salvarOuAtualizarPagamento, localizarPagamento, listarPagamentos } = require("./database/database");
+const { pool, iniciarBanco } = require("./database");
 
 const app = express();
 app.use(cors());
@@ -166,4 +167,17 @@ app.post("/webhook", async (req, res) => {
 
 app.get("/pagamentos", (req, res) => res.json(listarPagamentos()));
 
-app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+async function iniciarServidor() {
+  try {
+    await iniciarBanco();
+
+    app.listen(PORT, () => {
+      console.log(`Servidor rodando na porta ${PORT}`);
+    });
+  } catch (erro) {
+    console.error("Erro ao iniciar o banco PostgreSQL:", erro);
+    process.exit(1);
+  }
+}
+
+iniciarServidor();
