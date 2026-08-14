@@ -256,6 +256,7 @@ function normalizarPresente(row) {
     imagem: row.imagem || "",
     link: row.link || "",
     comprado: Boolean(row.comprado),
+    ordem: Number(row.ordem) || 0,
     criadoEm: row.criado_em
   };
 }
@@ -265,9 +266,9 @@ app.get("/presentes", async (req, res) => {
     const resultado = await pool.query(`
       SELECT
         id, nome, descricao, categoria, valor,
-        arrecadado, imagem, link, comprado, criado_em
+        arrecadado, imagem, link, comprado, ordem, criado_em
       FROM presentes
-      ORDER BY id ASC
+      ORDER BY ordem ASC NULLS LAST, id ASC
     `);
 
     res.json(resultado.rows.map(normalizarPresente));
@@ -304,9 +305,16 @@ app.post("/presentes", async (req, res) => {
     const resultado = await pool.query(
       `
         INSERT INTO presentes
-          (nome, descricao, categoria, valor, arrecadado, imagem, link, comprado)
+          (
+            nome, descricao, categoria, valor,
+            arrecadado, imagem, link, comprado, ordem
+          )
         VALUES
-          ($1, $2, $3, $4, $5, $6, $7, $8)
+          (
+            $1, $2, $3, $4,
+            $5, $6, $7, $8,
+            (SELECT COALESCE(MAX(ordem), 0) + 1 FROM presentes)
+          )
         RETURNING *
       `,
       [
@@ -428,6 +436,74 @@ app.delete("/presentes/:id", async (req, res) => {
     res.status(500).json({
       erro: "Não foi possível excluir o presente."
     });
+  }
+});
+
+
+// Reordena presentes sem excluir ou recriar nenhum item.
+app.put("/presentes/reordenar", async (req, res) => {
+  const ids = Array.isArray(req.body?.ids)
+    ? req.body.ids.map(Number)
+    : [];
+
+  if (
+    ids.length === 0 ||
+    ids.some(id => !Number.isInteger(id))
+  ) {
+    return res.status(400).json({
+      erro: "Lista de IDs inválida."
+    });
+  }
+
+  const idsUnicos = [...new Set(ids)];
+
+  if (idsUnicos.length !== ids.length) {
+    return res.status(400).json({
+      erro: "A lista contém IDs duplicados."
+    });
+  }
+
+  const cliente = await pool.connect();
+
+  try {
+    await cliente.query("BEGIN");
+
+    const existentes = await cliente.query(
+      "SELECT id FROM presentes ORDER BY ordem ASC NULLS LAST, id ASC"
+    );
+
+    const todosIds = existentes.rows.map(row => Number(row.id));
+
+    if (
+      todosIds.length !== ids.length ||
+      todosIds.some(id => !idsUnicos.includes(id))
+    ) {
+      await cliente.query("ROLLBACK");
+
+      return res.status(409).json({
+        erro: "A lista de presentes mudou. Atualize o painel e tente novamente."
+      });
+    }
+
+    for (let i = 0; i < ids.length; i++) {
+      await cliente.query(
+        "UPDATE presentes SET ordem = $1 WHERE id = $2",
+        [i + 1, ids[i]]
+      );
+    }
+
+    await cliente.query("COMMIT");
+    res.json({ ok: true });
+  } catch (erro) {
+    await cliente.query("ROLLBACK");
+
+    console.error("Erro ao reordenar presentes:", erro);
+
+    res.status(500).json({
+      erro: "Não foi possível salvar a nova ordem."
+    });
+  } finally {
+    cliente.release();
   }
 });
 

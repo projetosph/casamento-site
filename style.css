@@ -2301,12 +2301,10 @@ h1, h2, h3 {
 .cardPresente { position:relative; }
 .seloParcelamento {
   position:absolute; top:18px; left:18px; z-index:5;
-  min-width:50px; padding:15px 8px;
+  min-width:96px; padding:8px 10px;
   background:rgba(132,157,150,.68); color:var(--verde);
-  font-family:'Montserrat',sans-serif; font-size:9px; font-weight:700 ;
+  font-family:'Montserrat',sans-serif; font-size:15px; font-weight:600;
   line-height:1.25; letter-spacing:.5px; text-align:center;
-  border-radius: 50%;
-  margin-left:0;
 }
 .cardPresente .btnPresentear,
 .cardPresente .btnCustearParte {
@@ -2322,4 +2320,75 @@ h1, h2, h3 {
   .seloParcelamento{top:14px;left:14px;min-width:88px;padding:7px 8px;font-size:14px}
   .cardPresente .btnPresentear,.cardPresente .btnCustearParte{font-size:14px}
   .box .linkMapa.btn{min-width:96px;min-height:39px;padding:10px 20px}
+}
+
+
+/* =========================================================
+   PAINEL - BUSCA E REORDENAÇÃO DE PRESENTES
+   ========================================================= */
+
+.cabecalhoPresentesAdmin {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  margin-top:18px;
+}
+
+.cabecalhoPresentesAdmin .tituloListaAdmin {
+  margin:0;
+}
+
+.buscarPresenteAdmin {
+  width:min(340px, 100%);
+  padding:11px 13px;
+  border:1px solid #cfd6d2;
+  border-radius:6px;
+  background:rgba(255,255,255,.95);
+  color:var(--verde);
+  font-family:'Montserrat',sans-serif;
+  font-size:13px;
+  outline:none;
+}
+
+.buscarPresenteAdmin:focus {
+  border-color:var(--verde);
+  box-shadow:0 0 0 2px rgba(47,62,58,.08);
+}
+
+.dicaOrdenacaoAdmin {
+  margin:8px 0 14px;
+  color:#737d79;
+  font-size:11px;
+  line-height:1.4;
+}
+
+.produtoAdminOrdenavel {
+  cursor:grab;
+  user-select:none;
+  transition:
+    opacity .15s ease,
+    transform .15s ease,
+    box-shadow .15s ease;
+}
+
+.produtoAdminOrdenavel:active {
+  cursor:grabbing;
+}
+
+.produtoAdminOrdenavel.arrastando {
+  opacity:.45;
+  transform:scale(.99);
+  box-shadow:0 10px 26px rgba(0,0,0,.13);
+}
+
+@media(max-width:700px) {
+  .cabecalhoPresentesAdmin {
+    align-items:stretch;
+    flex-direction:column;
+  }
+
+  .buscarPresenteAdmin {
+    width:100%;
+  }
 }

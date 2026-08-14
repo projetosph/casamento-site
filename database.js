@@ -40,8 +40,31 @@ async function iniciarBanco() {
       imagem TEXT,
       link TEXT,
       comprado BOOLEAN NOT NULL DEFAULT FALSE,
+      ordem INTEGER,
       criado_em TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+  `);
+
+  /* Migração segura: preserva todos os presentes já existentes. */
+  await pool.query(`
+    ALTER TABLE presentes
+    ADD COLUMN IF NOT EXISTS ordem INTEGER;
+  `);
+
+  await pool.query(`
+    WITH ordenados AS (
+      SELECT
+        id,
+        ROW_NUMBER() OVER (
+          ORDER BY COALESCE(ordem, 2147483647), id
+        ) AS nova_ordem
+      FROM presentes
+    )
+    UPDATE presentes AS p
+    SET ordem = o.nova_ordem
+    FROM ordenados AS o
+    WHERE p.id = o.id
+      AND p.ordem IS NULL;
   `);
 
   await pool.query(`

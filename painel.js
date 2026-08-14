@@ -208,16 +208,32 @@ async function carregarProdutosAdmin() {
     }
 
     container.innerHTML = `
-      <h3 class="tituloListaAdmin">Presentes cadastrados</h3>
-      <div class="gridProdutosAdmin">
-        ${produtosAdmin
-          .map(
-            (produto, index) =>
-              criarCardProdutoAdmin(produto, index)
-          )
-          .join("")}
+      <div class="cabecalhoPresentesAdmin">
+        <h3 class="tituloListaAdmin">Presentes cadastrados</h3>
+
+        <input
+          type="search"
+          id="buscarPresenteAdmin"
+          class="buscarPresenteAdmin"
+          placeholder="Buscar presente..."
+          autocomplete="off">
       </div>
+
+      <p class="dicaOrdenacaoAdmin">
+        Arraste um presente para cima ou para baixo para mudar sua posição na lista pública.
+      </p>
+
+      <div class="gridProdutosAdmin" id="gridProdutosAdmin"></div>
     `;
+
+    const busca =
+      document.getElementById("buscarPresenteAdmin");
+
+    busca?.addEventListener("input", () => {
+      renderizarProdutosAdmin(busca.value);
+    });
+
+    renderizarProdutosAdmin("");
   } catch (erro) {
     console.error("Erro ao carregar presentes:", erro);
 
@@ -244,7 +260,10 @@ function criarCardProdutoAdmin(produto, index) {
     : "";
 
   return `
-    <article class="produtoAdmin">
+    <article
+      class="produtoAdmin produtoAdminOrdenavel"
+      draggable="true"
+      data-produto-id="${produto.id}">
       ${imagem}
 
       <div class="produtoAdminInfo">
@@ -279,6 +298,173 @@ function criarCardProdutoAdmin(produto, index) {
       </div>
     </article>
   `;
+}
+
+
+function renderizarProdutosAdmin(termo = "") {
+  const grid =
+    document.getElementById("gridProdutosAdmin");
+
+  if (!grid) return;
+
+  const busca =
+    String(termo || "").trim().toLowerCase();
+
+  const itens = busca
+    ? produtosAdmin
+        .map((produto, index) => ({ produto, index }))
+        .filter(({ produto }) => {
+          const texto = [
+            produto.nome,
+            produto.descricao,
+            produto.categoria
+          ]
+            .join(" ")
+            .toLowerCase();
+
+          return texto.includes(busca);
+        })
+    : produtosAdmin.map(
+        (produto, index) => ({ produto, index })
+      );
+
+  if (itens.length === 0) {
+    grid.innerHTML = `
+      <p class="listaVazia">
+        Nenhum presente encontrado.
+      </p>
+    `;
+    return;
+  }
+
+  grid.innerHTML = itens
+    .map(({ produto, index }) =>
+      criarCardProdutoAdmin(produto, index)
+    )
+    .join("");
+
+  // A busca só filtra visualmente. A ordem não muda enquanto há filtro.
+  if (!busca) {
+    ativarArrastarPresentes();
+  }
+}
+
+function ativarArrastarPresentes() {
+  const grid =
+    document.getElementById("gridProdutosAdmin");
+
+  if (!grid) return;
+
+  let arrastado = null;
+
+  grid
+    .querySelectorAll(".produtoAdminOrdenavel")
+    .forEach(card => {
+      card.addEventListener("dragstart", evento => {
+        arrastado = card;
+        card.classList.add("arrastando");
+
+        evento.dataTransfer.effectAllowed = "move";
+        evento.dataTransfer.setData(
+          "text/plain",
+          card.dataset.produtoId || ""
+        );
+      });
+
+      card.addEventListener("dragend", async () => {
+        card.classList.remove("arrastando");
+        arrastado = null;
+
+        await salvarOrdemPresentes();
+      });
+
+      card.addEventListener("dragover", evento => {
+        evento.preventDefault();
+
+        if (!arrastado || arrastado === card) {
+          return;
+        }
+
+        const caixa = card.getBoundingClientRect();
+        const depois =
+          evento.clientY > caixa.top + caixa.height / 2;
+
+        if (depois) {
+          card.after(arrastado);
+        } else {
+          card.before(arrastado);
+        }
+      });
+    });
+}
+
+async function salvarOrdemPresentes() {
+  const grid =
+    document.getElementById("gridProdutosAdmin");
+
+  if (!grid) return;
+
+  const ids = [
+    ...grid.querySelectorAll(
+      ".produtoAdminOrdenavel"
+    )
+  ].map(card => Number(card.dataset.produtoId));
+
+  if (
+    ids.length !== produtosAdmin.length ||
+    ids.some(id => !Number.isInteger(id))
+  ) {
+    return;
+  }
+
+  try {
+    const resposta = await fetch(
+      `${API_PAINEL}/presentes/reordenar`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ ids })
+      }
+    );
+
+    const dados = await resposta.json();
+
+    if (!resposta.ok) {
+      throw new Error(
+        dados.erro ||
+        "Não foi possível salvar a nova ordem."
+      );
+    }
+
+    const porId = new Map(
+      produtosAdmin.map(produto => [
+        Number(produto.id),
+        produto
+      ])
+    );
+
+    produtosAdmin = ids
+      .map(id => porId.get(id))
+      .filter(Boolean);
+
+    if (typeof mostrarFeedback === "function") {
+      mostrarFeedback("Ordem dos presentes salva!");
+    }
+  } catch (erro) {
+    console.error(
+      "Erro ao salvar ordem dos presentes:",
+      erro
+    );
+
+    alert(
+      erro.message +
+      "\nA lista será recarregada."
+    );
+
+    await carregarProdutosAdmin();
+  }
 }
 
 function mostrarPreco(produto) {
