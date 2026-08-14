@@ -507,6 +507,261 @@ app.put("/reordenar-presentes", async (req, res) => {
   }
 });
 
+
+// ==========================================================
+// PAGAMENTOS + ATUALIZAÇÃO DOS PRESENTES - POSTGRESQL
+// ==========================================================
+
+async function registrarPagamentoBanco(registro) {
+  const pagamentoId =
+    String(registro.pagamentoId || "").trim();
+
+  if (!pagamentoId) {
+    throw new Error("Pagamento sem ID do Mercado Pago.");
+  }
+
+  const produtoId =
+    Number(registro.produtoId);
+
+  const valor =
+    Number(registro.valor) || 0;
+
+  const parcelas =
+    Number(registro.installments || registro.parcelas) || null;
+
+  const resultado = await pool.query(
+    `
+      INSERT INTO pagamentos (
+        mercado_pago_id,
+        status,
+        status_detail,
+        valor,
+        nome,
+        email,
+        produto_id,
+        produto_nome,
+        tipo_contribuicao,
+        metodo_pagamento,
+        parcelas,
+        atualizado_em
+      )
+      VALUES (
+        $1, $2, $3, $4, $5, $6,
+        $7, $8, $9, $10, $11,
+        CURRENT_TIMESTAMP
+      )
+      ON CONFLICT (mercado_pago_id)
+      DO UPDATE SET
+        status = EXCLUDED.status,
+        status_detail = EXCLUDED.status_detail,
+        valor = CASE
+          WHEN EXCLUDED.valor > 0
+          THEN EXCLUDED.valor
+          ELSE pagamentos.valor
+        END,
+        nome = COALESCE(
+          NULLIF(EXCLUDED.nome, ''),
+          pagamentos.nome
+        ),
+        email = COALESCE(
+          NULLIF(EXCLUDED.email, ''),
+          pagamentos.email
+        ),
+        produto_id = COALESCE(
+          EXCLUDED.produto_id,
+          pagamentos.produto_id
+        ),
+        produto_nome = COALESCE(
+          NULLIF(EXCLUDED.produto_nome, ''),
+          pagamentos.produto_nome
+        ),
+        tipo_contribuicao = COALESCE(
+          NULLIF(EXCLUDED.tipo_contribuicao, ''),
+          pagamentos.tipo_contribuicao
+        ),
+        metodo_pagamento = COALESCE(
+          NULLIF(EXCLUDED.metodo_pagamento, ''),
+          pagamentos.metodo_pagamento
+        ),
+        parcelas = COALESCE(
+          EXCLUDED.parcelas,
+          pagamentos.parcelas
+        ),
+        atualizado_em = CURRENT_TIMESTAMP
+      RETURNING *
+    `,
+    [
+      pagamentoId,
+      registro.status || "",
+      registro.statusDetail || "",
+      valor,
+      registro.nome || "",
+      registro.email || "",
+      Number.isInteger(produtoId) ? produtoId : null,
+      registro.produtoNome || "",
+      registro.tipoContribuicao || "",
+      registro.metodoPagamento || "",
+      parcelas
+    ]
+  );
+
+  return resultado.rows[0];
+}
+
+async function aplicarPagamentoAprovadoBanco(pagamentoId) {
+  const cliente = await pool.connect();
+
+  try {
+    await cliente.query("BEGIN");
+
+    const consultaPagamento = await cliente.query(
+      `
+        SELECT *
+        FROM pagamentos
+        WHERE mercado_pago_id = $1
+        FOR UPDATE
+      `,
+      [String(pagamentoId)]
+    );
+
+    if (consultaPagamento.rowCount === 0) {
+      await cliente.query("ROLLBACK");
+      return false;
+    }
+
+    const pagamento = consultaPagamento.rows[0];
+
+    if (
+      pagamento.status !== "approved" ||
+      pagamento.aplicado
+    ) {
+      await cliente.query("COMMIT");
+      return false;
+    }
+
+    const produtoId = Number(pagamento.produto_id);
+    const valorPago = Number(pagamento.valor) || 0;
+
+    if (
+      !Number.isInteger(produtoId) ||
+      valorPago <= 0
+    ) {
+      await cliente.query("ROLLBACK");
+
+      console.error(
+        "Pagamento aprovado sem produto/valor válido:",
+        pagamento.mercado_pago_id
+      );
+
+      return false;
+    }
+
+    const produto = await cliente.query(
+      `
+        SELECT id, valor, arrecadado
+        FROM presentes
+        WHERE id = $1
+        FOR UPDATE
+      `,
+      [produtoId]
+    );
+
+    if (produto.rowCount === 0) {
+      await cliente.query("ROLLBACK");
+
+      console.error(
+        "Produto do pagamento não encontrado:",
+        produtoId
+      );
+
+      return false;
+    }
+
+    const valorTotal =
+      Number(produto.rows[0].valor) || 0;
+
+    const arrecadadoAtual =
+      Number(produto.rows[0].arrecadado) || 0;
+
+    const novoArrecadado =
+      Math.min(
+        valorTotal,
+        arrecadadoAtual + valorPago
+      );
+
+    await cliente.query(
+      `
+        UPDATE presentes
+        SET
+          arrecadado = $1,
+          comprado = ($1 >= valor)
+        WHERE id = $2
+      `,
+      [novoArrecadado, produtoId]
+    );
+
+    await cliente.query(
+      `
+        UPDATE pagamentos
+        SET
+          aplicado = TRUE,
+          atualizado_em = CURRENT_TIMESTAMP
+        WHERE mercado_pago_id = $1
+      `,
+      [String(pagamentoId)]
+    );
+
+    await cliente.query("COMMIT");
+
+    console.log(
+      `Pagamento ${pagamentoId} aplicado ao presente ${produtoId}: +${valorPago}`
+    );
+
+    return true;
+  } catch (erro) {
+    await cliente.query("ROLLBACK");
+    throw erro;
+  } finally {
+    cliente.release();
+  }
+}
+
+async function atualizarPagamentoCompleto(registro) {
+  const salvo =
+    await registrarPagamentoBanco(registro);
+
+  if (salvo.status === "approved") {
+    await aplicarPagamentoAprovadoBanco(
+      salvo.mercado_pago_id
+    );
+  }
+
+  return salvo;
+}
+
+function normalizarPagamentoBanco(row) {
+  return {
+    id: row.id,
+    pagamentoId: row.mercado_pago_id,
+    status: row.status || "",
+    statusDetail: row.status_detail || "",
+    valor: Number(row.valor) || 0,
+    nome: row.nome || "",
+    email: row.email || "",
+    produtoId: row.produto_id,
+    produtoNome: row.produto_nome || "",
+    tipoContribuicao:
+      row.tipo_contribuicao || "",
+    metodoPagamento:
+      row.metodo_pagamento || "",
+    installments:
+      Number(row.parcelas) || null,
+    aplicado: Boolean(row.aplicado),
+    criadoEm: row.criado_em,
+    atualizadoEm: row.atualizado_em
+  };
+}
+
 app.get("/config/mercadopago", (req, res) => {
   const publicKey = process.env.MERCADO_PAGO_PUBLIC_KEY;
   if (!publicKey) return res.status(500).json({ erro: "MERCADO_PAGO_PUBLIC_KEY não configurada." });
@@ -530,16 +785,29 @@ app.post("/criar-pix", async (req, res) => {
 
     const dadosPix = pagamento.point_of_interaction?.transaction_data || {};
 
-    salvarOuAtualizarPagamento({
+    const registroPix = {
       pagamentoId: String(pagamento.id),
       status: pagamento.status,
       statusDetail: pagamento.status_detail,
-      valor: Number(pagamento.transaction_amount) || valorNumerico,
-      nome, email, produtoId, produtoIndex, produtoNome, produtoImagem: produtoImagem || "",
-      tipoContribuicao, metodoPagamento: "pix",
-      externalReference: pagamento.external_reference || referencia,
-      criadoEm: new Date().toISOString(), atualizadoEm: new Date().toISOString()
-    });
+      valor:
+        Number(pagamento.transaction_amount) ||
+        valorNumerico,
+      nome,
+      email,
+      produtoId,
+      produtoIndex,
+      produtoNome,
+      produtoImagem: produtoImagem || "",
+      tipoContribuicao,
+      metodoPagamento: "pix",
+      externalReference:
+        pagamento.external_reference || referencia,
+      criadoEm: new Date().toISOString(),
+      atualizadoEm: new Date().toISOString()
+    };
+
+    salvarOuAtualizarPagamento(registroPix);
+    await atualizarPagamentoCompleto(registroPix);
 
     res.status(201).json({
       pagamentoId: String(pagamento.id),
@@ -578,18 +846,34 @@ app.post("/criar-cartao", async (req, res) => {
       token, installments: parcelas, paymentMethodId: payment_method_id, issuerId: issuer_id, payer
     });
 
-    salvarOuAtualizarPagamento({
+    const registroCartao = {
       pagamentoId: String(pagamento.id),
       status: pagamento.status,
       statusDetail: pagamento.status_detail,
-      valor: Number(pagamento.transaction_amount) || valorNumerico,
-      nome, email, produtoId, produtoIndex, produtoNome, produtoImagem: produtoImagem || "",
-      tipoContribuicao, metodoPagamento: "cartao",
-      paymentMethodId: pagamento.payment_method_id || payment_method_id,
-      installments: pagamento.installments || parcelas,
-      externalReference: pagamento.external_reference || referencia,
-      criadoEm: new Date().toISOString(), atualizadoEm: new Date().toISOString()
-    });
+      valor:
+        Number(pagamento.transaction_amount) ||
+        valorNumerico,
+      nome,
+      email,
+      produtoId,
+      produtoIndex,
+      produtoNome,
+      produtoImagem: produtoImagem || "",
+      tipoContribuicao,
+      metodoPagamento: "cartao",
+      paymentMethodId:
+        pagamento.payment_method_id ||
+        payment_method_id,
+      installments:
+        pagamento.installments || parcelas,
+      externalReference:
+        pagamento.external_reference || referencia,
+      criadoEm: new Date().toISOString(),
+      atualizadoEm: new Date().toISOString()
+    };
+
+    salvarOuAtualizarPagamento(registroCartao);
+    await atualizarPagamentoCompleto(registroCartao);
 
     res.status(201).json({
       pagamentoId: String(pagamento.id),
@@ -621,6 +905,8 @@ app.get("/pagamentos/:id/status", async (req, res) => {
       atualizadoEm: new Date().toISOString()
     };
     salvarOuAtualizarPagamento(registro);
+    await atualizarPagamentoCompleto(registro);
+
     res.json({
       pagamentoId: String(pagamento.id),
       status: pagamento.status,
@@ -643,21 +929,53 @@ app.post("/webhook", async (req, res) => {
   try {
     const pagamento = await consultarPagamento(pagamentoId);
     const anterior = localizarPagamento(pagamentoId) || {};
-    salvarOuAtualizarPagamento({
+    const registroWebhook = {
       ...anterior,
       pagamentoId: String(pagamento.id),
       status: pagamento.status,
       statusDetail: pagamento.status_detail,
-      valor: Number(pagamento.transaction_amount) || Number(anterior.valor) || 0,
+      valor:
+        Number(pagamento.transaction_amount) ||
+        Number(anterior.valor) ||
+        0,
       atualizadoEm: new Date().toISOString()
-    });
-    console.log(`Webhook: pagamento ${pagamento.id} = ${pagamento.status}`);
+    };
+
+    salvarOuAtualizarPagamento(registroWebhook);
+    await atualizarPagamentoCompleto(
+      registroWebhook
+    );
+
+    console.log(
+      `Webhook: pagamento ${pagamento.id} = ${pagamento.status}`
+    );
   } catch (erro) {
     console.error("Erro no webhook:", erro);
   }
 });
 
-app.get("/pagamentos", (req, res) => res.json(listarPagamentos()));
+app.get("/pagamentos", async (req, res) => {
+  try {
+    const resultado = await pool.query(`
+      SELECT *
+      FROM pagamentos
+      ORDER BY criado_em DESC, id DESC
+    `);
+
+    res.json(
+      resultado.rows.map(normalizarPagamentoBanco)
+    );
+  } catch (erro) {
+    console.error(
+      "Erro ao listar pagamentos:",
+      erro
+    );
+
+    res.status(500).json({
+      erro: "Não foi possível carregar os pagamentos."
+    });
+  }
+});
 
 async function iniciarServidor() {
   try {

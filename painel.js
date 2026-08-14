@@ -14,6 +14,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   await carregarPresencasAdmin();
   await carregarRecadosAdmin();
 
+  garantirBlocoPagamentos();
+  await carregarPagamentosAdmin();
+
   previewImagemProduto();
 
   if (typeof atualizarDashboard === "function") {
@@ -1051,6 +1054,195 @@ async function migrarRecadosLocaisParaBanco() {
       "Não foi possível migrar os recados antigos:",
       erro
     );
+  }
+}
+
+
+// ==================================================
+// PAGAMENTOS RECEBIDOS
+// ==================================================
+
+function garantirBlocoPagamentos() {
+  if (document.getElementById("pagamentosAdmin")) {
+    return;
+  }
+
+  const painel =
+    document.querySelector(".painel-container");
+
+  if (!painel) return;
+
+  const bloco =
+    document.createElement("div");
+
+  bloco.className = "bloco";
+
+  bloco.innerHTML = `
+    <div
+      class="tituloBloco"
+      onclick="toggleBloco(this)">
+      PAGAMENTOS RECEBIDOS
+    </div>
+
+    <div class="conteudoBloco">
+      <div id="pagamentosAdmin"></div>
+    </div>
+  `;
+
+  painel.appendChild(bloco);
+}
+
+async function carregarPagamentosAdmin() {
+  const container =
+    document.getElementById("pagamentosAdmin");
+
+  if (!container) return;
+
+  container.innerHTML = `
+    <p class="listaVazia">
+      Carregando pagamentos...
+    </p>
+  `;
+
+  try {
+    const resposta =
+      await fetch(`${API_PAINEL}/pagamentos`);
+
+    const dados = await resposta.json();
+
+    if (!resposta.ok) {
+      throw new Error(
+        dados.erro ||
+        "Não foi possível carregar os pagamentos."
+      );
+    }
+
+    const aprovados =
+      (Array.isArray(dados) ? dados : [])
+        .filter(
+          pagamento =>
+            pagamento.status === "approved"
+        );
+
+    const total = aprovados.reduce(
+      (soma, pagamento) =>
+        soma + (Number(pagamento.valor) || 0),
+      0
+    );
+
+    container.innerHTML = `
+      <div class="resumoPagamentosAdmin">
+        <strong>
+          ${aprovados.length} pagamento(s) aprovado(s)
+        </strong>
+
+        <span>
+          ${formatarMoeda(total)}
+        </span>
+      </div>
+
+      ${
+        aprovados.length === 0
+          ? `
+            <p class="listaVazia">
+              Nenhum pagamento aprovado ainda.
+            </p>
+          `
+          : aprovados.map(pagamento => {
+              const metodo =
+                pagamento.metodoPagamento === "cartao"
+                  ? "Cartão"
+                  : "PIX";
+
+              const tipo =
+                pagamento.tipoContribuicao === "parcial"
+                  ? "Parte do valor"
+                  : "Valor completo";
+
+              const data =
+                pagamento.criadoEm
+                  ? new Date(
+                      pagamento.criadoEm
+                    ).toLocaleString("pt-BR")
+                  : "";
+
+              const parcelas =
+                metodo === "Cartão" &&
+                Number(pagamento.installments) > 1
+                  ? ` • ${pagamento.installments}x`
+                  : "";
+
+              return `
+                <div class="pagamentoAdminItem">
+
+                  <div class="pagamentoAdminTopo">
+                    <strong>
+                      ${escaparHtml(
+                        pagamento.nome ||
+                        "Convidado"
+                      )}
+                    </strong>
+
+                    <span>
+                      ${formatarMoeda(
+                        Number(pagamento.valor) || 0
+                      )}
+                    </span>
+                  </div>
+
+                  <p>
+                    <strong>Presente:</strong>
+                    ${escaparHtml(
+                      pagamento.produtoNome ||
+                      "Não informado"
+                    )}
+                  </p>
+
+                  <p>
+                    <strong>Forma:</strong>
+                    ${metodo}${parcelas}
+                    • ${tipo}
+                  </p>
+
+                  ${
+                    pagamento.email
+                      ? `
+                        <p>
+                          <strong>E-mail:</strong>
+                          ${escaparHtml(
+                            pagamento.email
+                          )}
+                        </p>
+                      `
+                      : ""
+                  }
+
+                  ${
+                    data
+                      ? `
+                        <small>
+                          ${escaparHtml(data)}
+                        </small>
+                      `
+                      : ""
+                  }
+
+                </div>
+              `;
+            }).join("")
+      }
+    `;
+  } catch (erro) {
+    console.error(
+      "Erro ao carregar pagamentos:",
+      erro
+    );
+
+    container.innerHTML = `
+      <p class="listaVazia">
+        ${escaparHtml(erro.message)}
+      </p>
+    `;
   }
 }
 

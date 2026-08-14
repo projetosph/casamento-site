@@ -87,6 +87,37 @@ async function iniciarBanco() {
     );
   `);
 
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS pagamentos (
+      id SERIAL PRIMARY KEY,
+      mercado_pago_id TEXT NOT NULL UNIQUE,
+      status TEXT,
+      status_detail TEXT,
+      valor NUMERIC(10,2) NOT NULL DEFAULT 0,
+      nome TEXT,
+      email TEXT,
+      produto_id INTEGER,
+      produto_nome TEXT,
+      tipo_contribuicao TEXT,
+      metodo_pagamento TEXT,
+      parcelas INTEGER,
+      aplicado BOOLEAN NOT NULL DEFAULT FALSE,
+      criado_em TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      atualizado_em TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_pagamentos_produto_id
+    ON pagamentos(produto_id);
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_pagamentos_status
+    ON pagamentos(status);
+  `);
+
   console.log("Tabelas PostgreSQL verificadas/criadas");
 }
 
