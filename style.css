@@ -441,8 +441,6 @@ h1, h2, h3 {
   color: white;
   border: none;
   padding: 12px;
-  border-radius: 0px;
-
   transition: all 0.3s ease;
 }
 
@@ -1456,6 +1454,7 @@ h1, h2, h3 {
   padding: 8px 11px;
   cursor: pointer;
   transition: .25s;
+  
 }
 
 .acoesProduto button:hover,
@@ -2473,4 +2472,9 @@ h1, h2, h3 {
     top: 8px !important;
     left: 8px !important;
   }
+}
+
+.cardPresente .btnPresentear,
+.cardPresente .btnCustearParte {
+  border-radius: 6px !important;
 }
