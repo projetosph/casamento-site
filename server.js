@@ -441,7 +441,7 @@ app.delete("/presentes/:id", async (req, res) => {
 
 
 // Reordena presentes sem excluir ou recriar nenhum item.
-app.put("/presentes/reordenar", async (req, res) => {
+app.put("/reordenar-presentes", async (req, res) => {
   const ids = Array.isArray(req.body?.ids)
     ? req.body.ids.map(Number)
     : [];

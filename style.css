@@ -2392,3 +2392,42 @@ h1, h2, h3 {
     width:100%;
   }
 }
+
+
+/* =========================================================
+   AJUSTE FINAL - SELO 3X SEM JUROS CIRCULAR
+   ========================================================= */
+
+.seloParcelamento {
+  width: 76px !important;
+  height: 76px !important;
+  min-width: 76px !important;
+
+  padding: 0 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  border-radius: 50% !important;
+
+  background: rgba(132,157,150,.72) !important;
+
+  color: var(--verde) !important;
+
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  line-height: 1.25 !important;
+  letter-spacing: .4px !important;
+  text-align: center !important;
+}
+
+@media (max-width: 600px) {
+  .seloParcelamento {
+    width: 68px !important;
+    height: 68px !important;
+    min-width: 68px !important;
+    font-size: 11px !important;
+  }
+}

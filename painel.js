@@ -419,7 +419,7 @@ async function salvarOrdemPresentes() {
 
   try {
     const resposta = await fetch(
-      `${API_PAINEL}/presentes/reordenar`,
+      `${API_PAINEL}/reordenar-presentes`,
       {
         method: "PUT",
         headers: {
@@ -429,12 +429,30 @@ async function salvarOrdemPresentes() {
       }
     );
 
-    const dados = await resposta.json();
+    const tipoConteudo =
+      resposta.headers.get("content-type") || "";
+
+    let dados = {};
+
+    if (tipoConteudo.includes("application/json")) {
+      dados = await resposta.json();
+    } else {
+      const texto = await resposta.text();
+
+      if (!resposta.ok) {
+        throw new Error(
+          `Backend respondeu ${resposta.status}. ` +
+          "A rota de reordenação ainda não está disponível no Render."
+        );
+      }
+
+      dados = { ok: true, resposta: texto };
+    }
 
     if (!resposta.ok) {
       throw new Error(
         dados.erro ||
-        "Não foi possível salvar a nova ordem."
+        `Erro ${resposta.status} ao salvar a nova ordem.`
       );
     }
 
