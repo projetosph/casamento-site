@@ -1081,7 +1081,7 @@ function garantirBlocoPagamentos() {
     <div
       class="tituloBloco"
       onclick="toggleBloco(this)">
-      PAGAMENTOS RECEBIDOS
+      Historico de presentes
     </div>
 
     <div class="conteudoBloco">
