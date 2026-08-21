@@ -252,6 +252,7 @@ function normalizarPresente(row) {
     descricao: row.descricao || "",
     categoria: row.categoria || "",
     valor: Number(row.valor) || 0,
+    valorLivre: Boolean(row.valor_livre),
     arrecadado: Number(row.arrecadado) || 0,
     imagem: row.imagem || "",
     link: row.link || "",
@@ -265,7 +266,7 @@ app.get("/presentes", async (req, res) => {
   try {
     const resultado = await pool.query(`
       SELECT
-        id, nome, descricao, categoria, valor,
+        id, nome, descricao, categoria, valor, valor_livre,
         arrecadado, imagem, link, comprado, ordem, criado_em
       FROM presentes
       ORDER BY ordem ASC NULLS LAST, id ASC
@@ -287,18 +288,21 @@ app.post("/presentes", async (req, res) => {
       descricao = "",
       categoria = "",
       valor,
+      valorLivre = false,
       arrecadado = 0,
       imagem = "",
       link = "",
       comprado = false
     } = req.body;
 
-    const valorNumerico = Number(valor);
+    const valorLivreBooleano = Boolean(valorLivre);
+    const valorNumerico = valorLivreBooleano ? 0 : Number(valor);
     const arrecadadoNumerico = Number(arrecadado) || 0;
 
-    if (!nome || !Number.isFinite(valorNumerico) || valorNumerico <= 0) {
+    if (!nome || (!valorLivreBooleano &&
+        (!Number.isFinite(valorNumerico) || valorNumerico <= 0))) {
       return res.status(400).json({
-        erro: "Nome e valor válido são obrigatórios."
+        erro: "Informe o nome e um valor válido, ou use valor livre."
       });
     }
 
@@ -306,13 +310,13 @@ app.post("/presentes", async (req, res) => {
       `
         INSERT INTO presentes
           (
-            nome, descricao, categoria, valor,
+            nome, descricao, categoria, valor, valor_livre,
             arrecadado, imagem, link, comprado, ordem
           )
         VALUES
           (
-            $1, $2, $3, $4,
-            $5, $6, $7, $8,
+            $1, $2, $3, $4, $5,
+            $6, $7, $8, $9,
             (SELECT COALESCE(MAX(ordem), 0) + 1 FROM presentes)
           )
         RETURNING *
@@ -322,6 +326,7 @@ app.post("/presentes", async (req, res) => {
         String(descricao || "").trim(),
         String(categoria || "").trim(),
         valorNumerico,
+        valorLivreBooleano,
         Math.max(arrecadadoNumerico, 0),
         String(imagem || "").trim(),
         String(link || "").trim(),
@@ -348,17 +353,19 @@ app.put("/presentes/:id", async (req, res) => {
       descricao = "",
       categoria = "",
       valor,
+      valorLivre = false,
       imagem = "",
       link = ""
     } = req.body;
 
-    const valorNumerico = Number(valor);
+    const valorLivreBooleano = Boolean(valorLivre);
+    const valorNumerico = valorLivreBooleano ? 0 : Number(valor);
 
     if (
       !Number.isInteger(id) ||
       !nome ||
-      !Number.isFinite(valorNumerico) ||
-      valorNumerico <= 0
+      (!valorLivreBooleano &&
+        (!Number.isFinite(valorNumerico) || valorNumerico <= 0))
     ) {
       return res.status(400).json({
         erro: "Dados do presente inválidos."
@@ -373,14 +380,16 @@ app.put("/presentes/:id", async (req, res) => {
           descricao = $2,
           categoria = $3,
           valor = $4,
-          imagem = $5,
-          link = $6,
+          valor_livre = $5,
+          imagem = $6,
+          link = $7,
           comprado =
             CASE
+              WHEN $5 = TRUE THEN FALSE
               WHEN arrecadado >= $4 THEN TRUE
               ELSE FALSE
             END
-        WHERE id = $7
+        WHERE id = $8
         RETURNING *
       `,
       [
@@ -388,6 +397,7 @@ app.put("/presentes/:id", async (req, res) => {
         String(descricao || "").trim(),
         String(categoria || "").trim(),
         valorNumerico,
+        valorLivreBooleano,
         String(imagem || "").trim(),
         String(link || "").trim(),
         id
@@ -658,7 +668,7 @@ async function aplicarPagamentoAprovadoBanco(pagamentoId) {
 
     const produto = await cliente.query(
       `
-        SELECT id, valor, arrecadado
+        SELECT id, valor, valor_livre, arrecadado
         FROM presentes
         WHERE id = $1
         FOR UPDATE
@@ -683,18 +693,21 @@ async function aplicarPagamentoAprovadoBanco(pagamentoId) {
     const arrecadadoAtual =
       Number(produto.rows[0].arrecadado) || 0;
 
-    const novoArrecadado =
-      Math.min(
-        valorTotal,
-        arrecadadoAtual + valorPago
-      );
+    const valorLivre = Boolean(produto.rows[0].valor_livre);
+
+    const novoArrecadado = valorLivre
+      ? arrecadadoAtual + valorPago
+      : Math.min(valorTotal, arrecadadoAtual + valorPago);
 
     await cliente.query(
       `
         UPDATE presentes
         SET
           arrecadado = $1,
-          comprado = ($1 >= valor)
+          comprado = CASE
+            WHEN valor_livre = TRUE THEN FALSE
+            ELSE ($1 >= valor)
+          END
         WHERE id = $2
       `,
       [novoArrecadado, produtoId]
@@ -951,6 +964,30 @@ app.post("/webhook", async (req, res) => {
     );
   } catch (erro) {
     console.error("Erro no webhook:", erro);
+  }
+});
+
+app.delete("/pagamentos/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ erro: "ID inválido." });
+    }
+
+    const resultado = await pool.query(
+      "DELETE FROM pagamentos WHERE id = $1 RETURNING id",
+      [id]
+    );
+
+    if (!resultado.rowCount) {
+      return res.status(404).json({ erro: "Histórico não encontrado." });
+    }
+
+    // Não estorna e não reduz o arrecadado do presente.
+    res.json({ ok: true, id });
+  } catch (erro) {
+    console.error("Erro ao excluir histórico:", erro);
+    res.status(500).json({ erro: "Não foi possível excluir do histórico." });
   }
 });
 

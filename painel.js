@@ -14,6 +14,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   await carregarPresencasAdmin();
   await carregarRecadosAdmin();
 
+  garantirCampoValorLivre();
   garantirBlocoPagamentos();
   await carregarPagamentosAdmin();
 
@@ -38,8 +39,12 @@ async function salvarProduto() {
   const categoria =
     document.getElementById("categoriaProduto").value;
 
-  const valor =
-    Number(document.getElementById("valorProduto").value);
+  const valorLivre =
+    Boolean(document.getElementById("valorLivreProduto")?.checked);
+
+  const valor = valorLivre
+    ? 0
+    : Number(document.getElementById("valorProduto").value);
 
   const imagemDigitada =
     document.getElementById("imagemProduto").value.trim();
@@ -50,8 +55,9 @@ async function salvarProduto() {
   const editIndex =
     document.getElementById("editIndex").value;
 
-  if (!nome || !Number.isFinite(valor) || valor <= 0) {
-    alert("Preencha o nome e um valor válido.");
+  if (!nome || (!valorLivre &&
+      (!Number.isFinite(valor) || valor <= 0))) {
+    alert("Preencha o nome e um valor válido, ou marque Valor definido pelo convidado.");
     return;
   }
 
@@ -67,7 +73,8 @@ async function salvarProduto() {
     categoria,
     imagem,
     link,
-    valor
+    valor,
+    valorLivre
   };
 
   try {
@@ -123,7 +130,13 @@ function editarProduto(index) {
     produto.categoria || "";
 
   document.getElementById("valorProduto").value =
-    produto.valor || "";
+    produto.valorLivre ? "" : (produto.valor || "");
+
+  const livre = document.getElementById("valorLivreProduto");
+  if (livre) {
+    livre.checked = Boolean(produto.valorLivre);
+    alternarValorLivreProduto();
+  }
 
   document.getElementById("imagemProduto").value =
     produto.imagem || "";
@@ -289,6 +302,13 @@ function criarCardProdutoAdmin(produto, index) {
       </div>
 
       <div class="acoesProduto">
+        ${index > 0 ? `
+          <button type="button"
+                  class="btnPrimeiraPosicao"
+                  onclick="colocarPresentePrimeiro(${index})">
+            ↑ 1º
+          </button>` : ""}
+
         <button type="button"
                 onclick="editarProduto(${index})">
           Editar
@@ -303,6 +323,64 @@ function criarCardProdutoAdmin(produto, index) {
   `;
 }
 
+
+async function colocarPresentePrimeiro(index) {
+  const produto = produtosAdmin[index];
+  if (!produto || index <= 0) return;
+
+  const ids = [
+    Number(produto.id),
+    ...produtosAdmin
+      .filter((_, i) => i !== index)
+      .map(item => Number(item.id))
+  ];
+
+  try {
+    const resposta = await fetch(`${API_PAINEL}/reordenar-presentes`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids })
+    });
+    const dados = await resposta.json();
+    if (!resposta.ok) throw new Error(dados.erro || "Não foi possível mover.");
+    await carregarProdutosAdmin();
+  } catch (erro) {
+    console.error(erro);
+    alert(erro.message);
+  }
+}
+
+function garantirCampoValorLivre() {
+  const campo = document.getElementById("valorProduto");
+  if (!campo || document.getElementById("valorLivreProduto")) return;
+
+  const label = document.createElement("label");
+  label.className = "opcaoValorLivreAdmin";
+  label.innerHTML = `
+    <input type="checkbox" id="valorLivreProduto">
+    <span>Valor definido pelo convidado</span>
+  `;
+  campo.insertAdjacentElement("afterend", label);
+  document.getElementById("valorLivreProduto")
+    .addEventListener("change", alternarValorLivreProduto);
+  alternarValorLivreProduto();
+}
+
+function alternarValorLivreProduto() {
+  const campo = document.getElementById("valorProduto");
+  const marcado = Boolean(
+    document.getElementById("valorLivreProduto")?.checked
+  );
+  if (!campo) return;
+  campo.disabled = marcado;
+  campo.required = !marcado;
+  if (marcado) {
+    campo.value = "";
+    campo.placeholder = "Valor será escolhido pelo convidado";
+  } else {
+    campo.placeholder = "Valor";
+  }
+}
 
 function renderizarProdutosAdmin(termo = "") {
   const grid =
@@ -489,6 +567,9 @@ async function salvarOrdemPresentes() {
 }
 
 function mostrarPreco(produto) {
+  if (produto.valorLivre) {
+    return `<p class="valorAtual">VALOR LIVRE</p>`;
+  }
   const valor = Number(produto.valor) || 0;
   const arrecadado = Number(produto.arrecadado) || 0;
   const restante = Math.max(valor - arrecadado, 0);
@@ -515,6 +596,11 @@ function limparFormulario() {
   document.getElementById("descricaoProduto").value = "";
   document.getElementById("categoriaProduto").value = "";
   document.getElementById("valorProduto").value = "";
+  const livre = document.getElementById("valorLivreProduto");
+  if (livre) {
+    livre.checked = false;
+    alternarValorLivreProduto();
+  }
   document.getElementById("imagemProduto").value = "";
   document.getElementById("linkProduto").value = "";
   document.getElementById("editIndex").value = "";
@@ -1081,7 +1167,7 @@ function garantirBlocoPagamentos() {
     <div
       class="tituloBloco"
       onclick="toggleBloco(this)">
-      Historico de presentes
+      PAGAMENTOS RECEBIDOS
     </div>
 
     <div class="conteudoBloco">
@@ -1090,6 +1176,24 @@ function garantirBlocoPagamentos() {
   `;
 
   painel.appendChild(bloco);
+}
+
+async function excluirPagamentoHistorico(id) {
+  if (!confirm(
+    "Excluir este item do histórico?\n\nIsso NÃO desfaz o pagamento nem altera o valor já recebido."
+  )) return;
+
+  try {
+    const resposta = await fetch(`${API_PAINEL}/pagamentos/${id}`, {
+      method: "DELETE"
+    });
+    const dados = await resposta.json();
+    if (!resposta.ok) throw new Error(dados.erro || "Não foi possível excluir.");
+    await carregarPagamentosAdmin();
+  } catch (erro) {
+    console.error(erro);
+    alert(erro.message);
+  }
 }
 
 async function carregarPagamentosAdmin() {
@@ -1219,14 +1323,15 @@ async function carregarPagamentosAdmin() {
 
                   ${
                     data
-                      ? `
-                        <small>
-                          ${escaparHtml(data)}
-                        </small>
-                      `
+                      ? `<small>${escaparHtml(data)}</small>`
                       : ""
                   }
 
+                  <button type="button"
+                          class="btnExcluirHistorico"
+                          onclick="excluirPagamentoHistorico(${Number(pagamento.id)})">
+                    Excluir do histórico
+                  </button>
                 </div>
               `;
             }).join("")

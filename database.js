@@ -52,6 +52,11 @@ async function iniciarBanco() {
   `);
 
   await pool.query(`
+    ALTER TABLE presentes
+    ADD COLUMN IF NOT EXISTS valor_livre BOOLEAN NOT NULL DEFAULT FALSE;
+  `);
+
+  await pool.query(`
     WITH ordenados AS (
       SELECT
         id,

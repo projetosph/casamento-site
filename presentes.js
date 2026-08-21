@@ -51,11 +51,13 @@ async function carregarPresentes() {
 }
 
 function criarCardPresente(produto, index) {
+  const valorLivre = Boolean(produto.valorLivre);
   const valor = Number(produto.valor ?? produto.valorTotal) || 0;
   const arrecadado = Number(produto.arrecadado) || 0;
   const restante = Math.max(valor - arrecadado, 0);
   const quitado =
-    Boolean(produto.comprado) || (valor > 0 && restante <= 0);
+    !valorLivre &&
+    (Boolean(produto.comprado) || (valor > 0 && restante <= 0));
 
   const imagem = converterUrlImagem(
     produto.imagem || produto.img || ""
@@ -72,7 +74,9 @@ function criarCardPresente(produto, index) {
 
   let valorHtml = "";
 
-  if (arrecadado > 0) {
+  if (valorLivre) {
+    valorHtml = `<p class="valorAtual valorLivrePublico">VOCÊ ESCOLHE O VALOR</p>`;
+  } else if (arrecadado > 0) {
     valorHtml = `
       <p class="valorAntigo">${formatarMoeda(valor)}</p>
       ${
@@ -122,7 +126,7 @@ function criarCardPresente(produto, index) {
         ${quitado ? "PRESENTEADO" : "PRESENTEAR"}
       </button>
 
-      ${quitado ? "" : `
+      ${quitado || valorLivre ? "" : `
         <button
           type="button"
           class="btnCustearParte"
@@ -142,11 +146,12 @@ function abrirCheckout(index) {
     return;
   }
 
+  const valorLivre = Boolean(produto.valorLivre);
   const valor = Number(produto.valor ?? produto.valorTotal) || 0;
   const arrecadado = Number(produto.arrecadado) || 0;
-  const restante = Math.max(valor - arrecadado, 0);
+  const restante = valorLivre ? 0 : Math.max(valor - arrecadado, 0);
 
-  if (restante <= 0) {
+  if (!valorLivre && restante <= 0) {
     alert("Esse presente já foi completado.");
     return;
   }
@@ -156,6 +161,7 @@ function abrirCheckout(index) {
     index,
     id: produto.id,
     valor,
+    valorLivre,
     arrecadado,
     restante,
     imagem: converterUrlImagem(
